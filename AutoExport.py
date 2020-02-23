@@ -4,6 +4,9 @@ from pywinauto.application import Application
 import pywinauto
 import time
 import json
+import os
+import sys
+import winreg
 import configparser
 
 class AutoExport:
@@ -38,6 +41,7 @@ class AutoExport:
             app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title="税控发票开票软件")
         except:
             ht_app = self.get_app_path()
+            print(ht_app)
             app = Application(backend='uia').start(ht_app)
             app = self.run_app(5)
         # print(app.windows())
@@ -54,7 +58,22 @@ class AutoExport:
         self.app = app
 
     def get_app_path(self):
-        self.config['app']['path_ht']    
+        app_path = self.config['app']['path_ht']
+        if app_path == "":
+            try:
+
+                reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\fwkp.exe")
+                app_path_all, type = winreg.QueryValueEx(reg_key, "Path")
+
+                path_start = app_path_all.find('开票软件')
+                app_path = app_path_all[0:int(path_start)+5] + self.config['app']['name_ht']
+            except:
+                app_path = ''
+        else:
+            app_path = self.config['app']['path_ht'] + self.config['app']['name_ht']
+        if app_path != '' and os.path.exists(app_path):
+            return app_path
+        return ''
 
     def user_info(self):
         # select_menu = 0
