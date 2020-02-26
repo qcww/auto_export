@@ -24,7 +24,7 @@ class Export:
         self.menu_action = ['系统设置','发票管理','汇总处理','系统维护']
         self.export_menu = "汇总管理->发票数据导出->发票数据导出"
         self.login()
-        self.user_info()
+        # self.user_info()
         self.check_version()
         
     def run_app(self,timeout):
@@ -40,6 +40,14 @@ class Export:
         except:
             pass        
         return app
+
+    # 最小化本应用窗口
+    def min_app(self):
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+        try:
+            ac.minimize()
+        except:
+            pass
 
     def login(self):
         # 已经打开
@@ -91,11 +99,14 @@ class Export:
         try:
             ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
             status_bar = ac.window(auto_id="statusStrip1", control_type="StatusBar")
+            status_bar.wait('exists', timeout=10, retry_interval=1)
             match_uid = status_bar.children()[0].texts()[0]
             p1 = match_uid.find("#")
             p2 = match_uid.find(".")
             uid = match_uid[int(p1)+1:int(p2)]
-            return uid,status_bar.children()[1].texts()[0]
+            corpname = status_bar.children()[1].texts()[0]
+            ac.minimize()
+            return uid,corpname
         except:    
             return '',''
 
@@ -111,10 +122,9 @@ class Export:
         ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
         # dlg.print_control_identifiers()
         tool_bar = ac.window(auto_id="toolStripMenu", control_type="ToolBar")
-
         hz_button = tool_bar.window(title=self.menu_action[tab_menu], control_type="Button")
         hz_button.click()
-        time.sleep(1)
+        time.sleep(3)
 
     # 计算月份差 
     def months(self,date1,date2):
@@ -130,16 +140,69 @@ class Export:
         ac = app.windows()[0]
         ac.minimize()
 
-    def dw_excel(self,ym):
+    # 执行准备动作
+    def do_ready(self):
         # 防止不规范操作导致的关闭应用或最小化窗口
         self.login()
         try:
-            ac = self.app.windows()[0]
-            ac.set_focus()
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
+            ac = app.windows()[0]
             ac.maximize()
+            ac.set_focus()
         except:
             pass
-        
+
+
+    # 修复数据
+    def fix_data(self,ym):
+        # 切换菜单
+        select_menu = 1
+        self.tab_menu(select_menu)
+        try:
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
+            ac = app.window(class_name_re="WindowsForms10.Window.8.app")
+            ac.menu_select(u"发票管理->发票修复")
+        except:
+            pass
+
+        fix_win = ac.window(title="发票修复", auto_id="SelectMonth")
+        fix_win.wait('exists', timeout=10, retry_interval=1)
+
+        ym_split = ym.split('-')
+        now = time.strftime("%Y-%m-01",  time.localtime())
+        now_split = now.split('-')
+        dec_year = int(now_split[0]) - int(ym_split[0])
+        if dec_year > 0:
+            dec_month = 12 - int(ym_split[1])
+        else:
+            dec_month = int(now_split[1]) - int(ym_split[1])
+
+        fix_win.window(class_name_re="WindowsForms10.COMBOBOX.app.",auto_id="aisinoCMB_Year").set_focus()
+        if dec_year > 0:
+            for i in range(dec_year):
+                win32api.keybd_event(40,0,0,0)
+                win32api.keybd_event(40,0,win32con.KEYEVENTF_KEYUP,0)
+
+        fix_win.window(auto_id="com_month", control_type="ComboBox").set_focus()
+        if dec_month > 0:
+            for i in range(dec_month):
+                win32api.keybd_event(40,0,0,0)
+                win32api.keybd_event(40,0,win32con.KEYEVENTF_KEYUP,0)
+
+        fix_win.window(title="确定", auto_id="but_ok", control_type="Button").click()
+
+        time.sleep(2)
+        fix_win = app.window(title="发票修复过程")
+        fix_win.wait_not('exists', timeout=60, retry_interval=3)
+        time.sleep(1)
+
+        app = Application(backend='uia').connect(title="SysMessageBox",class_name_re="WindowsForms10.Window.8.app")
+        mes_win = app.window(title="SysMessageBox")
+        mes_win.wait('exists', timeout=10, retry_interval=1)
+        mes_win.window(title="确认", class_name_re="WindowsForms10.BUTTON.app").click()
+
+    # 导出excel
+    def dw_excel(self,ym):
         select_menu = 2
         self.tab_menu(select_menu)
         time.sleep(1)
@@ -221,9 +284,3 @@ class Export:
 
 
         return {"code":500,"msg":""}
-
-# menu =ac.child_window(auto_id="toolStripMenu", control_type="System.Windows.Forms.ToolStrip")
-# menu.draw_outline(colour ='green',thickness = 2,rect = None)
-
-# auto = AutoExport()
-# auto.dw_excel()

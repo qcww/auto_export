@@ -8,8 +8,8 @@
 ###########################################################################
 
 import wx
-import wx.adv
 import wx.xrc
+import wx.adv
 
 ###########################################################################
 ## Class MyFrame1
@@ -20,7 +20,7 @@ class MyFrame1 ( wx.Frame ):
 	def __init__( self, parent ):
 		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-开票辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,365 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		
-		self.SetSizeHints( wx.Size( 450,365 ), wx.Size( 450,365 ) )
+		self.SetSizeHintsSz( wx.Size( 450,365 ), wx.Size( 450,365 ) )
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
 		
 		self.m_menubar1 = wx.MenuBar( 0 )
@@ -64,7 +64,7 @@ class MyFrame1 ( wx.Frame ):
 		
 		sbSizer11 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"辅助工具" ), wx.VERTICAL )
 		
-		self.m_staticText2 = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"提示:切换开票软件后重启辅助软件", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText2 = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"提示：切换开票软件后重启软件生效", wx.DefaultPosition, wx.DefaultSize, 0 )
 		self.m_staticText2.Wrap( -1 )
 		self.m_staticText2.SetForegroundColour( wx.Colour( 239, 82, 78 ) )
 		self.m_staticText2.SetBackgroundColour( wx.Colour( 240, 240, 240 ) )
@@ -89,7 +89,7 @@ class MyFrame1 ( wx.Frame ):
 		
 		gSizer4.Add( self.m_radioBtn6, 0, wx.ALL, 5 )
 		
-		self.m_hyperlink2 = wx.adv.HyperlinkCtrl( sbSizer11.GetStaticBox(), wx.ID_ANY, u"下载", wx.EmptyString, wx.DefaultPosition, wx.DefaultSize )
+		self.m_hyperlink2 = wx.adv.HyperlinkCtrl( sbSizer11.GetStaticBox(), wx.ID_ANY, u"下载", wx.EmptyString, wx.DefaultPosition, wx.DefaultSize)
 		gSizer4.Add( self.m_hyperlink2, 0, wx.ALL, 5 )
 		
 		
@@ -109,6 +109,7 @@ class MyFrame1 ( wx.Frame ):
 		
 		sbSizer11.Add( bSizer3, 1, wx.EXPAND, 5 )
 		
+		
 		bSizer8.Add( sbSizer11, 1, wx.EXPAND, 5 )
 		
 		sbSizer12 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"操作" ), wx.VERTICAL )
@@ -123,18 +124,25 @@ class MyFrame1 ( wx.Frame ):
 		self.m_staticText4.Wrap( 1 )
 		fgSizer3.Add( self.m_staticText4, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 		
-		m_choice3Choices = [ wx.EmptyString, wx.EmptyString ]
-		self.m_choice3 = wx.Choice( sbSizer12.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_choice3Choices, 0 )
-		self.m_choice3.SetSelection( 0 )
+		m_choice3Choices = [ u"请选择", u"请选择", u"请选择", u"请选择", u"请选择", u"请选择" ]
+		self.m_choice3 = wx.Choice( sbSizer12.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_choice3Choices, wx.CB_SORT )
+		self.m_choice3.SetSelection( 1 )
 		fgSizer3.Add( self.m_choice3, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
 		
 		m_choice4Choices = [ u"1月", u"2月", u"3月", u"4月", u"5月", u"6月", u"7月", u"8月", u"9月", u"10月", u"11月", u"12月" ]
 		self.m_choice4 = wx.Choice( sbSizer12.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, m_choice4Choices, 0 )
 		self.m_choice4.SetSelection( 0 )
-		fgSizer3.Add( self.m_choice4, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5 )
+		fgSizer3.Add( self.m_choice4, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
 		
 		
 		bSizer9.Add( fgSizer3, 1, wx.EXPAND, 5 )
+		
+		self.m_staticText5 = wx.StaticText( sbSizer12.GetStaticBox(), wx.ID_ANY, u"数据同步中...", wx.Point( -1,-1 ), wx.DefaultSize, wx.ALIGN_CENTRE )
+		self.m_staticText5.Wrap( -1 )
+		self.m_staticText5.SetForegroundColour( wx.Colour( 239, 82, 78 ) )
+		self.m_staticText5.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
+		
+		bSizer9.Add( self.m_staticText5, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
 		
 		
 		sbSizer12.Add( bSizer9, 1, wx.EXPAND, 5 )
@@ -160,6 +168,9 @@ class MyFrame1 ( wx.Frame ):
 		self.SetSizer( gSizer2 )
 		self.Layout()
 		self.m_statusBar1 = self.CreateStatusBar( 1, 0, wx.ID_ANY )
+		self.m_statusBar1.SetForegroundColour( wx.Colour( 255, 0, 0 ) )
+		self.m_statusBar1.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
+		
 		
 		self.Centre( wx.BOTH )
 		
@@ -170,7 +181,9 @@ class MyFrame1 ( wx.Frame ):
 		self.m_choice3.Bind( wx.EVT_CHOICE, self.select_year )
 		self.m_choice4.Bind( wx.EVT_CHOICE, self.select_month )
 		self.m_button6.Bind( wx.EVT_BUTTON, self.export_sales )
-		self.m_button7.Bind( wx.EVT_BUTTON, self.export_purchase )
+		self.m_button6.Bind( wx.EVT_LEAVE_WINDOW, self.m_button6OnLeaveWindow )
+		self.m_button6.Bind( wx.EVT_LEFT_DCLICK, self.m_button6OnLeftDClick )
+		self.m_button7.Bind( wx.EVT_KEY_DOWN, self.export_purchase )
 	
 	def __del__( self ):
 		pass
@@ -191,6 +204,15 @@ class MyFrame1 ( wx.Frame ):
 		event.Skip()
 	
 	def export_sales( self, event ):
+		event.Skip()
+	
+	def m_button6OnKeyUp( self, event ):
+		event.Skip()
+	
+	def m_button6OnLeaveWindow( self, event ):
+		event.Skip()
+	
+	def m_button6OnLeftDClick( self, event ):
 		event.Skip()
 	
 	def export_purchase( self, event ):

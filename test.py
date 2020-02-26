@@ -9,8 +9,7 @@ import datetime
 import math
 import locale
 import os
-#导入SQLite驱动：
-import sqlite3
+import requests
 
 # app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
 # ac = app.window(class_name_re="WindowsForms10.Window.8.app")
@@ -82,21 +81,60 @@ import sqlite3
 # if mon_win.window(title="%d年%d月%d日" % (int(ym[0]),int(ym[1]),int(ym[2])), auto_id="dtpStart").exists() == True:
 #     print('yes')
 
+# 发票修复
+# try:
+#     app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app.",auto_id = "MDIMainForm")
+#     ac = app.window(class_name_re="WindowsForms10.Window.8.app.")
+#     ac.menu_select(u"发票管理->发票修复")
+# except:
+#     pass
 
-#连接到SQlite数据库
-#数据库文件是test.db，不存在，则自动创建
-conn = sqlite3.connect('ff.db')
-#创建一个cursor：
-cursor = conn.cursor()
-#执行一条SQL语句：创建user表
-cursor.execute('create table user(id varchar(20) primary key,name varchar(20))')
-#插入一条记录：
-cursor.execute('insert into user (id, name) values (\'1\', \'Michael\')')
-#通过rowcount获得插入的行数：
-print(cursor.rowcount) #reusult 1
-#关闭Cursor:
-cursor.close()
-#提交事务：
-conn.commit()
-#关闭connection：
-conn.close()
+# fix_win = ac.window(title="发票修复", auto_id="SelectMonth")
+# fix_win.wait('exists', timeout=10, retry_interval=1)
+
+# ym_split = "2019-05-01".split('-')
+# now = time.strftime("%Y-%m-01",  time.localtime())
+# now_split = now.split('-')
+# dec_year = int(now_split[0]) - int(ym_split[0])
+# if dec_year > 0:
+#     dec_month = 12 - int(ym_split[1])
+# else:
+#     dec_month = int(now_split[1]) - ym_split[1]
+
+# fix_win.window(class_name_re="WindowsForms10.COMBOBOX.app.",auto_id="aisinoCMB_Year").set_focus()
+# if dec_year > 0:
+#     for i in range(dec_year):
+#         win32api.keybd_event(40,0,0,0)
+#         win32api.keybd_event(40,0,win32con.KEYEVENTF_KEYUP,0)
+
+# fix_win.window(auto_id="com_month", control_type="ComboBox").set_focus()
+# if dec_month > 0:
+#     for i in range(dec_month):
+#         win32api.keybd_event(40,0,0,0)
+#         win32api.keybd_event(40,0,win32con.KEYEVENTF_KEYUP,0)
+
+# fix_win.window(title="确定", auto_id="but_ok", control_type="Button").click()
+
+# time.sleep(2)
+# fix_win = app.window(title="发票修复过程")
+# fix_win.wait_not('exists', timeout=60, retry_interval=3)
+# time.sleep(1)
+
+# app = Application(backend='uia').connect(title="SysMessageBox",class_name_re="WindowsForms10.Window.8.app")
+# mes_win = app.window(title="SysMessageBox")
+# mes_win.wait('exists', timeout=10, retry_interval=1)
+# mes_win.window(title="确认", class_name_re="WindowsForms10.BUTTON.app").click()
+
+
+# 上传文件
+def upload_file(file_name,upload_link,data):
+    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+    file_name = './exp_file/'+file_name
+    if os.path.exists(file_name):
+        print('fff')
+    files = {'upfile': open(file_name, 'rb')}
+    res = requests.post(upload_link, data=data, files=files, headers=headers)
+    return res
+
+re = upload_file('增值税专普发票数据导出20200225.xlsx','http://tinterface.hfxscw.com/interface.php?r=tax/invoice-upload',{"corpid":"71","period":"202001","submit":"1","tax_import":"1"})
+print(re.json())
