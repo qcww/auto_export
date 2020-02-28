@@ -20,28 +20,28 @@ class MyFrame1 ( wx.Frame ):
 	def __init__( self, parent ):
 		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-开票辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,365 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 		
-		self.SetSizeHintsSz( wx.Size( 450,365 ), wx.Size( 450,365 ) )
+		self.SetSizeHints( wx.Size( 450,365 ), wx.Size( 450,365 ) )
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
 		
 		self.m_menubar1 = wx.MenuBar( 0 )
 		self.m_menu6 = wx.Menu()
 		self.m_menuItem2 = wx.MenuItem( self.m_menu6, wx.ID_ANY, u"环境检测", wx.EmptyString, wx.ITEM_NORMAL )
-		self.m_menu6.AppendItem( self.m_menuItem2 )
+		self.m_menu6.Append( self.m_menuItem2 )
 		
 		self.m_menubar1.Append( self.m_menu6, u"操作" ) 
 		
 		self.m_menu7 = wx.Menu()
 		self.m_menuItem3 = wx.MenuItem( self.m_menu7, wx.ID_ANY, u"软件使用", wx.EmptyString, wx.ITEM_NORMAL )
-		self.m_menu7.AppendItem( self.m_menuItem3 )
+		self.m_menu7.Append( self.m_menuItem3 )
 		
 		self.m_menuItem5 = wx.MenuItem( self.m_menu7, wx.ID_ANY, u"软件版本", wx.EmptyString, wx.ITEM_NORMAL )
-		self.m_menu7.AppendItem( self.m_menuItem5 )
+		self.m_menu7.Append( self.m_menuItem5 )
 		
 		self.m_menubar1.Append( self.m_menu7, u"帮助" ) 
 		
 		self.m_menu10 = wx.Menu()
 		self.m_menuItem6 = wx.MenuItem( self.m_menu10, wx.ID_ANY, u"联系地址", wx.EmptyString, wx.ITEM_NORMAL )
-		self.m_menu10.AppendItem( self.m_menuItem6 )
+		self.m_menu10.Append( self.m_menuItem6 )
 		
 		self.m_menubar1.Append( self.m_menu10, u"联系我们" ) 
 		
@@ -179,6 +179,7 @@ class MyFrame1 ( wx.Frame ):
 		self.Centre( wx.BOTH )
 		
 		# Connect Events
+		self.Bind( wx.EVT_CLOSE, self.close_win )
 		self.Bind( wx.EVT_MENU, self.guide, id = self.m_menuItem3.GetId() )
 		self.Bind( wx.EVT_MENU, self.show_version, id = self.m_menuItem5.GetId() )
 		self.Bind( wx.EVT_MENU, self.contact_us, id = self.m_menuItem6.GetId() )
@@ -193,6 +194,9 @@ class MyFrame1 ( wx.Frame ):
 	
 	
 	# Virtual event handlers, overide them in your derived class
+	def close_win( self, event ):
+		event.Skip()
+	
 	def guide( self, event ):
 		event.Skip()
 	

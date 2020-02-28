@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['start.py'],
-             pathex=['D:\\phpstudy\\PHPTutorial\\WWW\\autoExport'],
+             pathex=['D:\\phpstudy\\PHPTutorial\\WWW\\auto_export'],
              binaries=[],
              datas=[],
              hiddenimports=[],

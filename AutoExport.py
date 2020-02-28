@@ -13,10 +13,17 @@ import win32api
 import win32con
 import math
 import locale
+import regedit
 
 class Export:
     def __init__(self):
-        self.config_file = './config/config.ini'
+        # config_path = os.path.abspath(os.path.dirname(__file__))
+        # os.chdir(config_path)
+        self.config_file = "./config/config.ini"
+        if os.path.exists(self.config_file) == False:
+            self.config_file = regedit.get_client_path()+"\\config\\config.ini"
+        else:
+            regedit.set_client_path()
         self.config = configparser.ConfigParser()
         self.config.read(self.config_file,encoding='utf-8')
         locale.setlocale(locale.LC_ALL,'en') 
@@ -81,6 +88,7 @@ class Export:
         if app.window(found_index=0).child_window(title="登录", auto_id="btnOK", control_type="Button").exists() == True:
             
             if retry == False:
+                # 尝试从网站获取配置
                 pwd = ac.window(auto_id="txtPwd", control_type="Edit")
                 time.sleep(2)
                 text_pw = pwd.texts()

@@ -11,6 +11,7 @@ import locale
 import os
 import requests
 import wx
+import regedit
 
 # app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
 # ac = app.window(class_name_re="WindowsForms10.Window.8.app")
@@ -155,18 +156,18 @@ import wx
 #     print('fff')
 
 
-def add_exp_log(data):
-    config_file = './config/config.ini'
-    config = configparser.ConfigParser()
-    config.read(config_file,encoding='utf-8')
+# def add_exp_log(data):
+#     config_file = './config/config.ini'
+#     config = configparser.ConfigParser()
+#     config.read(config_file,encoding='utf-8')
 
-    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-    add_link = config['log']['post_url']
-    return requests.post(add_link, data=data, headers=headers)
+#     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+#     add_link = config['log']['post_url']
+#     return requests.post(add_link, data=data, headers=headers)
 
 
-add_res = add_exp_log({'content':'2019年 11月份 销项票数据导出','credit_code':'913401003551536121','source':'1','corpid':'83','action':'2','period':'201911'})
-print(add_res.content)
+# add_res = add_exp_log({'content':'2019年 11月份 销项票数据导出','credit_code':'913401003551536121','source':'1','corpid':'83','action':'2','period':'201911'})
+# print(add_res.content)
 
 # 登录检测
 # def try_login(retry):
@@ -198,3 +199,6 @@ print(add_res.content)
 #             return try_login(False)
 
 # try_login(True)
+
+pp = regedit.get_client_path()
+print(pp)

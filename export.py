@@ -4,8 +4,8 @@ import wx
 import win32api
 import sys, os
 
-APP_TITLE = u'控件事件、鼠标事件、键盘事件、系统事件'
-APP_ICON = 'res/python.ico'
+APP_TITLE = u'动态布局'
+APP_ICON = 'mondrian.ico'
 
 class mainFrame(wx.Frame):
     '''程序主窗口类，继承自wx.Frame'''
@@ -13,70 +13,49 @@ class mainFrame(wx.Frame):
     def __init__(self, parent):
         '''构造函数'''
         
-        wx.Frame.__init__(self, parent, -1, title=APP_TITLE,style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MAXIMIZE_BOX)
-        self.SetBackgroundColour(wx.Colour(255, 246, 246))
-        self.SetSize((520, 320))
-        # self.Center()
-        box_size = wx.BoxSizer()
-        box_size.Add
-        panel=wx.Panel(self)#self表示实例即ChatFrame，创建一个面板
+        wx.Frame.__init__(self, parent, -1, APP_TITLE)
+        self.SetBackgroundColour(wx.Colour(240, 240, 240))
+        self.SetSize((800, 600))
+        self.Center()
         
         if hasattr(sys, "frozen") and getattr(sys, "frozen") == "windows_exe":
             exeName = win32api.GetModuleFileName(win32api.GetModuleHandle(None))
             icon = wx.Icon(exeName, wx.BITMAP_TYPE_ICO)
         else :
-            # icon = wx.Icon(APP_ICON, wx.BITMAP_TYPE_ICO)
-            pass
-        # self.SetIcon(icon)
-        self.sendLabel = wx.StaticText(panel,label="Send Msg")
-
-
-    def makeMenuBar(self):
-        fileMenu = wx.Menu()
-        helloItem = fileMenu.Append(-1, "&Hello...\tCtrl-H",
-                "Help string shown in status bar for this menu item")
-        fileMenu.AppendSeparator()
-        # When using a stock ID we don't need to specify the menu item's
-        # label
-        exitItem = fileMenu.Append(wx.ID_EXIT)
-
-        # Now a help menu for the about item
-        helpMenu = wx.Menu()
-        aboutItem = helpMenu.Append(wx.ID_ABOUT)
-        menuBar = wx.MenuBar()
-        menuBar.Append(fileMenu, "&File")
-        menuBar.Append(helpMenu, "&Help")
-
-        # Give the menu bar to the frame
-        self.SetMenuBar(menuBar)
-
-        # Finally, associate a handler function with the EVT_MENU event for
-        # each of the menu items. That means that when that menu item is
-        # activated then the associated handler function will be called.
-        self.Bind(wx.EVT_MENU, self.OnHello, helloItem)
-        self.Bind(wx.EVT_MENU, self.OnExit,  exitItem)
-        self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
-
-    def OnExit(self, event):
-        """Close the frame, terminating the application."""
-        self.Close(True)
-
-
-    def OnHello(self, event):
-        """Say hello to the user."""
-        wx.MessageBox("Hello again from wxPython")
-
-
-    def OnAbout(self, event):
-        """Display an About Dialog"""
-        wx.MessageBox("This is a wxPython Hello World sample",
-                      "About Hello World 2",
-                      wx.OK|wx.ICON_INFORMATION)
-    
-    def OnClose(self, evt):
-        dlg = wx.MessageDialog(None, u'确定要关闭本窗口？', u'操作提示', wx.YES_NO | wx.ICON_QUESTION)
-        if(dlg.ShowModal() == wx.ID_YES):
-            self.Destroy()
+            icon = wx.Icon(APP_ICON, wx.BITMAP_TYPE_ICO)
+        self.SetIcon(icon)
+        
+        preview = wx.Panel(self, -1, style=wx.SUNKEN_BORDER)
+        preview.SetBackgroundColour(wx.Colour(0, 0, 0))
+        btn_capture = wx.Button(self, -1, u'拍照', size=(100, -1))
+        btn_up = wx.Button(self, -1, u'↑', size=(30, 30))
+        btn_down = wx.Button(self, -1, u'↓', size=(30, 30))
+        btn_left = wx.Button(self, -1, u'←', size=(30, 30))
+        btn_right = wx.Button(self, -1, u'→', size=(30, 30))
+        tc = wx.TextCtrl(self, -1, '', style=wx.TE_MULTILINE)
+        
+        sizer_arrow_mid = wx.BoxSizer()
+        sizer_arrow_mid.Add(btn_left, 0, wx.RIGHT, 16)
+        sizer_arrow_mid.Add(btn_right, 0, wx.LEFT, 16)
+        
+        #sizer_arrow = wx.BoxSizer(wx.VERTICAL)
+        sizer_arrow = wx.StaticBoxSizer(wx.StaticBox(self, -1, u'方向键'), wx.VERTICAL)
+        sizer_arrow.Add(btn_up, 0, wx.ALIGN_CENTER|wx.ALL, 0)
+        sizer_arrow.Add(sizer_arrow_mid, 0, wx.TOP|wx.BOTTOM, 1)
+        sizer_arrow.Add(btn_down, 0, wx.ALIGN_CENTER|wx.ALL, 0)
+        
+        sizer_right = wx.BoxSizer(wx.VERTICAL)
+        sizer_right.Add(btn_capture, 0, wx.ALL, 20)
+        sizer_right.Add(sizer_arrow, 0, wx.ALIGN_CENTER|wx.ALL, 0)
+        sizer_right.Add(tc, 1, wx.ALL, 10)
+        
+        sizer_max = wx.BoxSizer()
+        sizer_max.Add(preview, 1, wx.EXPAND|wx.LEFT|wx.TOP|wx.BOTTOM, 5)
+        sizer_max.Add(sizer_right, 0, wx.EXPAND|wx.ALL, 0)
+        
+        self.SetAutoLayout(True)
+        self.SetSizer(sizer_max)
+        self.Layout()
         
 class mainApp(wx.App):
     def OnInit(self):
