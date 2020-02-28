@@ -65,16 +65,39 @@ class Export:
             app = self.run_app(3)
         # print(app.windows())
         # 需要点击登录
-        try:
-            ac = app.window(title="税控发票开票软件")
-            # ac.print_control_identifiers()
-            ac.set_focus()
-            ac["登录"].click()
-            time.sleep(2)
-        except:
-            ac = app.windows()[0]
-            ac.set_focus()
+        self.try_login(True)
+        # try:
+        #     self.try_login(True)
+        # except:
+        #     ac = app.windows()[0]
+        #     ac.set_focus()
         self.app = app
+
+    # 登录检测
+    def try_login(self,retry):
+        app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title="税控发票开票软件")
+        ac = app.window(found_index=0)
+        ac.set_focus()
+        if app.window(found_index=0).child_window(title="登录", auto_id="btnOK", control_type="Button").exists() == True:
+            
+            if retry == False:
+                pwd = ac.window(auto_id="txtPwd", control_type="Edit")
+                time.sleep(2)
+                text_pw = pwd.texts()
+                pwd.set_text("123456")
+                cert = ac.window(auto_id="txtCertPassword", control_type="Edit")
+                cert.set_text('12345678')
+            ac["登录"].click()   
+
+        time.sleep(1)
+        if ac.window(title="登录错误", auto_id="BodyBounds", control_type="Pane").exists() == True and retry == True:
+            err_win = ac.window(title="登录错误", auto_id="BodyBounds", control_type="Pane")
+            err_button = err_win.child_window(title="确认", auto_id="btnYes", control_type="Button")
+            err_button.wait('exists', timeout=5, retry_interval=1)
+            err_button.click()
+            if retry == True:
+                return self.try_login(False)
+        return app        
 
     def get_app_path(self):
         app_path = self.config['app']['path_ht']
@@ -136,9 +159,13 @@ class Export:
         return math.floor((date2-date1).days/30)
 
     def min_self(self):
-        app = Application(backend='uia').connect(class_name_re="wxWindowNR",title_re = "鑫山财务")
-        ac = app.windows()[0]
-        ac.minimize()
+        try:
+            app = Application(backend='uia').connect(class_name_re="wxWindowNR",title_re = "鑫山财务")
+            ac = app.windows()[0]
+            ac.minimize()
+        except:
+            pass
+
 
     # 执行准备动作
     def do_ready(self):
@@ -236,7 +263,7 @@ class Export:
                 export_window.window(title="确定", auto_id="btnOK").click()
                 time.sleep(1)
             else:
-                return {"code":404,"msg":"超出所选期或无数据"}
+                return {"code":301,"msg":"超出所选期或无数据"}
         except:
             pass
 
@@ -278,7 +305,7 @@ class Export:
             mes_win.wait('exists', timeout=10, retry_interval=1)
             if ac.window(title="导出成功").exists() == True:
                 ac.window(title="确认").click()
-                return {"code":200,"msg":"操作成功"}
+                return {"code":200,"msg":""}
         except:
             pass
 

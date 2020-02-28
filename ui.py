@@ -49,22 +49,36 @@ class MyFrame1 ( wx.Frame ):
 		
 		gSizer2 = wx.GridSizer( 0, 2, 0, 0 )
 		
+		bSizer4 = wx.BoxSizer( wx.VERTICAL )
+		
+		sbSizer5 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"待执行(双击处理)" ), wx.VERTICAL )
+		
+		m_listBox2Choices = []
+		self.m_listBox2 = wx.ListBox( sbSizer5.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.Size( 250,70 ), m_listBox2Choices, 0 )
+		sbSizer5.Add( self.m_listBox2, 0, wx.ALL, 5 )
+		
+		
+		bSizer4.Add( sbSizer5, 1, wx.EXPAND, 5 )
+		
 		sbSizer7 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"软件日志" ), wx.VERTICAL )
 		
 		m_listBox3Choices = []
-		self.m_listBox3 = wx.ListBox( sbSizer7.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.Size( 250,340 ), m_listBox3Choices, 0 )
+		self.m_listBox3 = wx.ListBox( sbSizer7.GetStaticBox(), wx.ID_ANY, wx.DefaultPosition, wx.Size( 250,140 ), m_listBox3Choices, 0 )
 		self.m_listBox3.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
 		
 		sbSizer7.Add( self.m_listBox3, 0, wx.ALL, 5 )
 		
 		
-		gSizer2.Add( sbSizer7, 1, wx.EXPAND, 5 )
+		bSizer4.Add( sbSizer7, 1, wx.EXPAND, 5 )
+		
+		
+		gSizer2.Add( bSizer4, 1, wx.EXPAND, 5 )
 		
 		bSizer8 = wx.BoxSizer( wx.VERTICAL )
 		
 		sbSizer11 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"辅助工具" ), wx.VERTICAL )
 		
-		self.m_staticText2 = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"提示：切换开票软件后重启软件生效", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText2 = wx.StaticText( sbSizer11.GetStaticBox(), wx.ID_ANY, u"建议：数据导出时勿操作干扰", wx.DefaultPosition, wx.DefaultSize, 0 )
 		self.m_staticText2.Wrap( -1 )
 		self.m_staticText2.SetForegroundColour( wx.Colour( 239, 82, 78 ) )
 		self.m_staticText2.SetBackgroundColour( wx.Colour( 240, 240, 240 ) )
@@ -89,7 +103,7 @@ class MyFrame1 ( wx.Frame ):
 		
 		gSizer4.Add( self.m_radioBtn6, 0, wx.ALL, 5 )
 		
-		self.m_hyperlink2 = wx.adv.HyperlinkCtrl( sbSizer11.GetStaticBox(), wx.ID_ANY, u"下载", wx.EmptyString, wx.DefaultPosition, wx.DefaultSize)
+		self.m_hyperlink2 = wx.adv.HyperlinkCtrl( sbSizer11.GetStaticBox(), wx.ID_ANY, u"下载", wx.EmptyString, wx.DefaultPosition, wx.DefaultSize )
 		gSizer4.Add( self.m_hyperlink2, 0, wx.ALL, 5 )
 		
 		
@@ -137,13 +151,6 @@ class MyFrame1 ( wx.Frame ):
 		
 		bSizer9.Add( fgSizer3, 1, wx.EXPAND, 5 )
 		
-		self.m_staticText5 = wx.StaticText( sbSizer12.GetStaticBox(), wx.ID_ANY, u"数据同步中...", wx.Point( -1,-1 ), wx.DefaultSize, wx.ALIGN_CENTRE )
-		self.m_staticText5.Wrap( -1 )
-		self.m_staticText5.SetForegroundColour( wx.Colour( 239, 82, 78 ) )
-		self.m_staticText5.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-		
-		bSizer9.Add( self.m_staticText5, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
-		
 		
 		sbSizer12.Add( bSizer9, 1, wx.EXPAND, 5 )
 		
@@ -168,51 +175,41 @@ class MyFrame1 ( wx.Frame ):
 		self.SetSizer( gSizer2 )
 		self.Layout()
 		self.m_statusBar1 = self.CreateStatusBar( 1, 0, wx.ID_ANY )
-		self.m_statusBar1.SetForegroundColour( wx.Colour( 255, 0, 0 ) )
-		self.m_statusBar1.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_WINDOW ) )
-		
 		
 		self.Centre( wx.BOTH )
 		
 		# Connect Events
+		self.Bind( wx.EVT_MENU, self.guide, id = self.m_menuItem3.GetId() )
+		self.Bind( wx.EVT_MENU, self.show_version, id = self.m_menuItem5.GetId() )
 		self.Bind( wx.EVT_MENU, self.contact_us, id = self.m_menuItem6.GetId() )
+		self.m_listBox2.Bind( wx.EVT_LISTBOX_DCLICK, self.do_action )
 		self.m_radioBtn6.Bind( wx.EVT_RADIOBUTTON, self.toggle )
 		self.m_radioBtn7.Bind( wx.EVT_RADIOBUTTON, self.toggle )
-		self.m_choice3.Bind( wx.EVT_CHOICE, self.select_year )
-		self.m_choice4.Bind( wx.EVT_CHOICE, self.select_month )
 		self.m_button6.Bind( wx.EVT_BUTTON, self.export_sales )
-		self.m_button6.Bind( wx.EVT_LEAVE_WINDOW, self.m_button6OnLeaveWindow )
-		self.m_button6.Bind( wx.EVT_LEFT_DCLICK, self.m_button6OnLeftDClick )
-		self.m_button7.Bind( wx.EVT_KEY_DOWN, self.export_purchase )
+		self.m_button7.Bind( wx.EVT_BUTTON, self.export_purchase )
 	
 	def __del__( self ):
 		pass
 	
 	
 	# Virtual event handlers, overide them in your derived class
+	def guide( self, event ):
+		event.Skip()
+	
+	def show_version( self, event ):
+		event.Skip()
+	
 	def contact_us( self, event ):
+		event.Skip()
+	
+	def do_action( self, event ):
 		event.Skip()
 	
 	def toggle( self, event ):
 		event.Skip()
 	
 	
-	def select_year( self, event ):
-		event.Skip()
-	
-	def select_month( self, event ):
-		event.Skip()
-	
 	def export_sales( self, event ):
-		event.Skip()
-	
-	def m_button6OnKeyUp( self, event ):
-		event.Skip()
-	
-	def m_button6OnLeaveWindow( self, event ):
-		event.Skip()
-	
-	def m_button6OnLeftDClick( self, event ):
 		event.Skip()
 	
 	def export_purchase( self, event ):
