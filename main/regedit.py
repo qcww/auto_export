@@ -2,17 +2,22 @@ import win32con
 import win32api
 import winreg
 import os
+import time
+import sys
 
-def add_auto_run(path):
+def add_auto_run(path_file):
     # zdynames = os.path.basename(__file__)     # 当前文件名的名称如：newsxiao.py
     name = 'AutoExport'      # 获得文件名的前部分,如：newsxiao
     # path = os.path.abspath(os.path.dirname(__file__))+'\\'+zdynames # 要添加的exe完整路径如：
     # 注册表项名
+    if os.path.exists(path_file.split(' ')[0]) == False:
+        return False
+
     KeyName = 'Software\\Microsoft\\Windows\\CurrentVersion\\Run'
     # 异常处理
     try:
         key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,  KeyName, 0,  win32con.KEY_ALL_ACCESS)
-        win32api.RegSetValueEx(key, name, 0, win32con.REG_SZ, path)
+        win32api.RegSetValueEx(key, name, 0, win32con.REG_SZ, path_file)
         win32api.RegCloseKey(key)
     except:
         return False
@@ -30,7 +35,7 @@ def set_client_path():
         key, _ = win32api.RegCreateKeyEx(reg_root, reg_path, reg_flags)
 
         #设置项
-        config_path = os.path.abspath(os.path.dirname(__file__))
+        config_path = os.path.dirname(os.path.realpath(sys.argv[0]))
         win32api.RegSetValueEx(key, "Path", 0, win32con.REG_SZ, config_path)
 
         #关闭
@@ -38,7 +43,6 @@ def set_client_path():
         return True
     except:
         return False
-
 
 def get_app_path(app_path,app_name):
     app_path = app_path
@@ -57,6 +61,20 @@ def get_app_path(app_path,app_name):
         return app_path
     return ''
 
+def get_credit_code():
+    try:
+        reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\fwkp.exe")
+        list_key = winreg.QueryInfoKey(reg_key)
+        if(list_key):
+            for i in range(int(list_key[0])):
+                user = winreg.EnumKey(reg_key,i)
+                print(user.split('.')[0])
+        # return list_key[0]
+        return ''
+
+    except:
+        credit_code = ''
+    return credit_code    
 
 def get_client_path():
     try:

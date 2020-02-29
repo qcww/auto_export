@@ -9,6 +9,7 @@ import datetime
 import requests
 import re
 import os
+import sys
 import regedit
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
@@ -90,13 +91,12 @@ class Ep(ui.MyFrame1):
     def OnClose(self, event):
         self.Hide()
 
-    def start(self):    
+    def start(self):
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
             self.config_file = regedit.get_client_path()+"\\config\\config.ini"
         else:
             regedit.set_client_path()
-        self.config_file = regedit.get_client_path()+"\\config\\config.ini"
         self.config = configparser.ConfigParser()
         self.config.read(self.config_file,encoding='utf-8')
         self.reset_date()
@@ -105,7 +105,7 @@ class Ep(ui.MyFrame1):
         self.set_dw_link()
         self.add_log('辅助工具已打开')
         # 设置开机启动
-        main_app = regedit.get_client_path() + "\\main\\" + self.config['client']['name']
+        main_app = regedit.get_client_path() + self.config['client']['name'] + " /autorun"
         if regedit.add_auto_run(main_app) == False:
             print('设置开机启动失败')
         
@@ -150,7 +150,8 @@ class Ep(ui.MyFrame1):
         ym = self.get_y_m()
         auto_app = AutoExport.Export()
         # 最小化本应用窗口
-        auto_app.min_self()
+        # auto_app.min_self()
+        self.Hide()
         auto_app.do_ready()
         # 修复数据
         try:
@@ -169,7 +170,7 @@ class Ep(ui.MyFrame1):
         if ret['code'] == 200:
             self.add_log("进项票导出成功，正在上传")
             sales_name = self.config['upload']['sales_name'] + time.strftime("%Y%m%d",  time.localtime()) + self.config['upload']['sales_file_ext']
-            sales_upload_link = self.config['upload']['sales_upload_link']
+            sales_upload_link = self.config['link']['host'] + self.config['upload']['sales_upload_link']
             post_data = {"credit_code":self.credit_code,"period":ym_split[0]+ym_split[1],"submit":"1","tax_import":"1"}
             ret = self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
             if ret['code'] == 200:
@@ -226,7 +227,7 @@ class Ep(ui.MyFrame1):
     # 添加日志
     def add_task(self):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-        add_link = self.config['log']['task_url']
+        add_link = self.config['link']['host'] + self.config['log']['task_url']
         req = requests.post(add_link, data={"credit_code":self.credit_code}, headers=headers)
         task = req.json()
         if len(task) == 0 or 'code' in task:
@@ -237,10 +238,20 @@ class Ep(ui.MyFrame1):
     # 开票软件运行状态
     def app_status(self):
         self.set_config('log','last_run_time',time.strftime("%Y-%m-%d %H:%M", time.localtime()))
-        auto_app = AutoExport.Export()
-        auto_app.do_ready()
-        self.credit_code,pname = auto_app.user_info()
-        if pname != "":
+        # 自启动的 从配置文件获取用户信息
+
+        print('检测启动方式')
+        if '/autorun' in sys.argv:
+            self.credit_code = self.config['log']['credit_code']
+            pname = self.config['log']['corpname']
+        else:
+            print('打开航天信息客户端获取信息')
+            auto_app = AutoExport.Export()
+            auto_app.do_ready()
+            self.credit_code,pname = auto_app.user_info()
+        if self.credit_code != "":
+            self.set_config('log','credit_code',self.credit_code)
+            self.set_config('log','corpname',pname)
             self.set_status('开票软件已运行 | ' + pname)
             self.add_task()
         else:
@@ -294,11 +305,16 @@ class Ep(ui.MyFrame1):
 
     def add_exp_log(self,data):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-        add_link = self.config['log']['post_url']
+        add_link = self.config['link']['host'] + self.config['log']['post_url']
         return requests.post(add_link, data=data, headers=headers)
 
 app = wx.App()
 frame = Ep(None)
 frame.start()
-frame.Show()
+if '/autorun' in sys.argv:
+    show_fram = False
+else:
+    show_fram = True
+
+frame.Show(show_fram)
 app.MainLoop()

@@ -200,5 +200,5 @@ import regedit
 
 # try_login(True)
 
-pp = regedit.get_client_path()
+pp = regedit.get_credit_code()
 print(pp)

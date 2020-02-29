@@ -1,0 +1,13 @@
+/main/dist
+/main/exp_file
+/main/main.exe
+/main/__pycache__
+/main/build
+config
+/main/AutoExport.spec
+/main/export.spec
+/main/main.spec
+/main/path.spec
+/main/st.spec
+/main/start.spec
+/main/ui.spec
