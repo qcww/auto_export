@@ -82,6 +82,8 @@ class Export:
             ac.set_focus()
         except:
             ht_app = self.get_app_path()
+            if ht_app == '':
+                return False
             app = Application(backend='uia').start(ht_app,timeout=15,retry_interval=5)
             time.sleep(10)
             print('等待程序启动')
@@ -171,7 +173,7 @@ class Export:
         # select_menu = 0
         # self.tab_menu(select_menu)
         try:
-            ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+            ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
             status_bar = ac.window(auto_id="statusStrip1", control_type="StatusBar")
             status_bar.wait('exists', timeout=10, retry_interval=1)
             match_uid = status_bar.children()[0].texts()[0]
@@ -186,14 +188,14 @@ class Export:
 
     # 版本兼容处理（仅仅处理已知版本兼容问题）
     def check_version(self):
-        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
         # v2.2.34版本出现
         if ac.Toolbar.window(title="报税处理").exists() == True:
             self.menu_action[2] = "报税处理"
             self.export_menu = "报税处理->发票数据导出->发票数据导出"
 
     def tab_menu(self,tab_menu):
-        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
         # dlg.print_control_identifiers()
         tool_bar = ac.window(auto_id="toolStripMenu", control_type="ToolBar")
         hz_button = tool_bar.window(title=self.menu_action[tab_menu], control_type="Button")
@@ -221,9 +223,20 @@ class Export:
     # 执行准备动作
     def do_ready(self):
         # 防止不规范操作导致的关闭应用或最小化窗口
-        self.login()
         try:
-            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
+            self.login()
+        except:
+            pass
+        
+        try:
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title_re="增值税发票税控开票软件",auto_id = "MDIMainForm")
+            ac = app.windows()
+            # 关闭其它弹框
+            if len(ac) > 1:
+                for i in ac:
+                    if i.automation_id() != 'MDIMainForm':
+                        i.close()
+
             ac = app.windows()[0]
             ac.maximize()
             ac.set_focus()
@@ -237,8 +250,8 @@ class Export:
         select_menu = 1
         self.tab_menu(select_menu)
         try:
-            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
-            ac = app.window(class_name_re="WindowsForms10.Window.8.app")
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title_re="增值税发票税控开票软件",auto_id = "MDIMainForm")
+            ac = app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
             ac.menu_select(u"发票管理->发票修复")
         except:
             pass

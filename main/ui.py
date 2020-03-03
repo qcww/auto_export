@@ -18,7 +18,7 @@ import wx.adv
 class MyFrame1 ( wx.Frame ):
 	
 	def __init__( self, parent ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-开票辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,365 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-开票辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,365 ), style = wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER ^ wx.MAXIMIZE_BOX|wx.TAB_TRAVERSAL )
 		
 		self.SetSizeHints( wx.Size( 450,365 ), wx.Size( 450,365 ) )
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
@@ -151,7 +151,10 @@ class MyFrame1 ( wx.Frame ):
 		
 		bSizer9.Add( fgSizer3, 1, wx.EXPAND, 5 )
 		
-		
+		self.m_staticText41 = wx.StaticText( sbSizer12.GetStaticBox(), wx.ID_ANY, u"", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText41.Wrap( -1 )
+		bSizer9.Add( self.m_staticText41, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
+
 		sbSizer12.Add( bSizer9, 1, wx.EXPAND, 5 )
 		
 		gSizer6 = wx.GridSizer( 0, 2, 0, 0 )
@@ -183,7 +186,7 @@ class MyFrame1 ( wx.Frame ):
 		self.Bind( wx.EVT_MENU, self.guide, id = self.m_menuItem3.GetId() )
 		self.Bind( wx.EVT_MENU, self.show_version, id = self.m_menuItem5.GetId() )
 		self.Bind( wx.EVT_MENU, self.contact_us, id = self.m_menuItem6.GetId() )
-		self.m_listBox2.Bind( wx.EVT_LISTBOX_DCLICK, self.do_action )
+		self.m_listBox2.Bind( wx.EVT_LISTBOX_DCLICK, self.task_click )
 		self.m_radioBtn6.Bind( wx.EVT_RADIOBUTTON, self.toggle )
 		self.m_radioBtn7.Bind( wx.EVT_RADIOBUTTON, self.toggle )
 		self.m_button6.Bind( wx.EVT_BUTTON, self.export_sales )

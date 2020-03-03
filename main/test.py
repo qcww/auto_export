@@ -199,6 +199,31 @@ import regedit
 #             return try_login(False)
 
 # try_login(True)
+# uid = regedit.get_pc_id()
+# print(uid)
 
-pp = regedit.get_credit_code()
-print(pp)
+# 关闭多余窗口
+# app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
+# ac = app.windows()
+# if len(ac) > 1:
+#     for i in ac:
+#         print(i.automation_id())
+#         if i.automation_id() != 'MDIMainForm':
+#             i.close()
+        # win = i.window(title_re="增值税发票税控开票软件")
+        # print(i.window(title_re="增值税发票税控开票软件").exists())
+
+import wx
+import ContactUs
+ 
+class YPiao(ContactUs.MyFrame3):
+    #这里开始继承后对Virtual event handlers进行override,这个示例是对关于我们的菜单选择后进行了重载。
+    def make_sure( self, event ):
+        self.Close()
+         
+# init the programe
+app = wx.App() #实例化APP，因为wxformbuilder只提供界面布局，所以需要我们自己对代码进行构架
+frame = YPiao(None) #frame的实例
+frame.Show();
+ 
+app.MainLoop() #wxpython的启动函数

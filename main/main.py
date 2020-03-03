@@ -11,12 +11,18 @@ import re
 import os
 import sys
 import regedit
+import win32com.client
+import websocket
+import threading
+import json
+import UsbCheck
+import ContactUs
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, frame):
         wx.adv.TaskBarIcon.__init__(self)
         self.frame = frame
-        self.SetIcon(wx.Icon(name='mondrian.ico', type=wx.BITMAP_TYPE_ICO), 'TaskBarIcon!')
+        self.SetIcon(wx.Icon(name='mondrian.ico', type=wx.BITMAP_TYPE_ICO), '鑫山财务-开票辅助工具')
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DCLICK, self.OnTaskBarLeftDClick)
  
     def OnTaskBarLeftDClick(self, event):
@@ -57,7 +63,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
 class Ep(ui.MyFrame1):
     def __init__(
-            self, parent=None, id=wx.ID_ANY, title='TaskBarIcon', pos=wx.DefaultPosition,
+            self, parent=None, id=wx.ID_ANY, title='鑫山财务-开票辅助工具', pos=wx.DefaultPosition,
             size=wx.DefaultSize, style=wx.DEFAULT_FRAME_STYLE
             ):
         ui.MyFrame1.__init__(self, parent)  
@@ -91,16 +97,38 @@ class Ep(ui.MyFrame1):
     def OnClose(self, event):
         self.Hide()
 
+    def contact_us(self,event):
+        print('联系我们')
+        contact = ContactUs.MyPanel1(self, parent)
+
     def start(self):
+        # 默认消息弹框提醒
+        self.tip = True
+        self.running_index = False
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
             self.config_file = regedit.get_client_path()+"\\config\\config.ini"
         else:
             regedit.set_client_path()
-        self.config = configparser.ConfigParser()
-        self.config.read(self.config_file,encoding='utf-8')
+
+        self.uid,first_run = regedit.get_pc_id()
+        if first_run == True:
+            self.post_link(self.config['client']['update_client_url',{"invoice_export_client_id":self.uid}])
+        try:
+            self.config = configparser.ConfigParser()
+            self.config.read(self.config_file,encoding='utf-8')
+            self.host = self.config['link']['host']
+        except:
+            dlg = wx.MessageDialog(None, "检测到配置文件丢失", u"错误提示(鑫山财务-开票辅助工具)", wx.OK | wx.STAY_ON_TOP)
+            if dlg.ShowModal() == wx.ID_YES:
+                return False
+            pass
+
         self.reset_date()
         self.set_status('已准备')
+
+        if self.check_user_service(True) == False:
+            return False
 
         self.set_dw_link()
         self.add_log('辅助工具已打开')
@@ -108,8 +136,130 @@ class Ep(ui.MyFrame1):
         main_app = regedit.get_client_path() + self.config['client']['name'] + " /autorun"
         if regedit.add_auto_run(main_app) == False:
             print('设置开机启动失败')
-        
-        self.app_status()
+        self.check_usb_action()
+        # self.app_status()
+        self.connect_service()
+        return True
+
+    def check_usb_action(self):
+        # self.run_status = bool(1 - self.run_status)
+        if hasattr(self,'check_usb') == False:
+            self.check_usb = threading.Thread(target=self.check_usb_staus)
+            self.cond = threading.Condition() # 锁
+            self.check_usb.start()
+
+    def check_usb_staus(self,first = True):
+        if self.config['app']['default'] == '6':
+            check_usb = UsbCheck.check_usb(self.config['app']['usb_ht'])
+            if check_usb == True:
+                self.m_staticText41.SetForegroundColour( wx.Colour( 0, 128, 0 ) )
+                self.m_staticText41.SetLabelText('金税盘已插入')
+                self.usb_insert = True
+            else:
+                self.m_staticText41.SetForegroundColour( wx.Colour( 233, 0, 0 ) )
+                self.m_staticText41.SetLabelText('请插入金税盘')
+                self.usb_insert = False
+            if first == True:
+                self.reset_usb_status(self.usb_insert)
+            elif self.his_usb_status != self.usb_insert:
+                self.reset_usb_status(self.usb_insert)
+        if self.usb_insert == False:
+            self.remove_task()
+            self.set_status('已准备')
+        time.sleep(5)
+        return self.check_usb_staus(False)
+
+    # 重置 usb状态
+    def reset_usb_status(self,usb_status):
+        self.his_usb_status = self.usb_insert
+        if self.usb_insert == True:
+            self.app_status()
+        ret = self.post_link(self.host + self.config['client']['update_usb_url'],{"invoice_export_client_id":self.uid,"usb_status":int(usb_status)})
+        print(ret)
+
+    # 修改客户端usb状态
+    def update_usb_status(self):
+        headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+        try:
+            res = requests.post(upload_link, data=data, files=files, headers=headers)
+            return res.json()
+        except:
+            return {"code":500,"text":"网络异常，上传失败"}
+
+    def connect_service(self):
+        # self.run_status = bool(1 - self.run_status)
+        if hasattr(self,'mythread') == False:
+            self.err_connect = 0
+            self.mythread = threading.Thread(target=self.create_websocket)
+            self.cond = threading.Condition() # 锁
+            self.mythread.start()
+
+        # if self.run_status == True:
+        #     # self.run_text.set('启动中')
+        #     self.run_text.set('运行中')
+        # else:
+        #     delattr(self,'mythread')
+        #     self.ws.close()
+        #     self.run_text.set('停止中')
+
+    def create_websocket(self):
+        def on_message(ws, message):
+            msg = json.loads(message)
+            # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
+            if msg['type'] == 'action' and msg['data'] != '':
+                # 默认消息弹框提醒
+                self.tip = False
+                self.m_listBox2.InsertItems([str(msg['data'])],0)
+                self.running_index = 0
+                self.parse_action(str(msg['data']))
+                
+
+        def on_error(ws, error):
+            now = time.strftime('%S ',time.localtime(time.time()))
+            if self.err_connect == 0:
+                self.add_log('服务器连接已断开')
+            self.err_connect += 1
+            time.sleep(8)
+            self.create_websocket()
+
+        def on_close(ws):
+            self.add_log('连接已断开')
+
+        def on_open(ws):
+            self.add_log('服务器连接成功')
+            self.err_connect = 0
+            uid,_ = regedit.get_pc_id()
+            ws.send('{"type":"login","room_id":"%s","client_name":"%s"}' % (self.config['client']['room_id'],uid))
+
+        websocket.enableTrace(True)
+        ws = websocket.WebSocketApp("ws://im.itking.cc:12366",
+                                    on_message = on_message,
+                                    on_error = on_error,
+                                    on_close = on_close)
+        ws.on_open = on_open
+        self.ws = ws
+        ws.run_forever()
+
+    # 检查用户代账服务状态
+    def check_user_service(self,first):
+        credit_code = self.config['log']['credit_code']
+        check_url = self.host + self.config['client']['check_service']
+        try:
+            ret = requests.post(check_url,data={"credit_code":credit_code})
+            check_user = ret.json()
+        except:
+            check_user = {"code":1,'text':'未能连接到服务端'}
+
+        if check_user['code'] == 1:
+            if first == True:
+                dlg = wx.MessageDialog(None, check_user['text'] + '，是否继续运行', u"鑫山财务-开票辅助工具 提示", wx.YES_NO | wx.STAY_ON_TOP)
+                if dlg.ShowModal() == wx.ID_NO:
+                    return False
+            else:
+                dlg = wx.MessageDialog(None, check_user['text'], u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP)
+                if dlg.ShowModal() == wx.ID_OK:
+                    return False
+        return True
 
     # 软件下载链接
     def set_dw_link(self):
@@ -125,10 +275,10 @@ class Ep(ui.MyFrame1):
         first = today.replace(day=1)
         lastMonth = first - datetime.timedelta(days=1)
         ym = lastMonth.strftime("%Y-%m")
-        self.seset_by_data(ym)
+        self.reset_by_data(ym)
 
     # 按指定时间设置界面
-    def seset_by_data(self,ym):
+    def reset_by_data(self,ym):
         ym_split = ym.split('-')
         now = time.strftime("%Y-%m-01",  time.localtime())
         now_split = now.split('-')
@@ -143,26 +293,36 @@ class Ep(ui.MyFrame1):
 
     # 导出销项票
     def export_sales(self,event):
-        # dlg = wx.MessageDialog(None, "是否重新运行", u"发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
-        # if dlg.ShowModal() == wx.ID_YES:
-        #     self.Close(True)
-        # return False
+        # 默认消息弹框提醒
         ym = self.get_y_m()
+        
+        if self.usb_insert == False:
+            self.add_log('导出失败，检测到税控盘未插入')
+            if self.tip == True:
+                dlg = wx.MessageDialog(None, u"未检测到税控盘，请插入后重试", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                if dlg.ShowModal() == wx.ID_OK:
+                    pass
+            return False
+
         auto_app = AutoExport.Export()
         # 最小化本应用窗口
         # auto_app.min_self()
         self.Hide()
         auto_app.do_ready()
+        check_uer = self.check_user_service(False)
+        if check_uer == False:
+            return False
         # 修复数据
+        
         try:
             auto_app.fix_data(ym)
             ret = auto_app.dw_excel(ym)
             auto_app.min_app()
         except:
-            dlg = wx.MessageDialog(None, "运行时发生了一个未知错误，是否重新运行", u"发生错误", wx.YES_NO | wx.STAY_ON_TOP)
-            if dlg.ShowModal() == wx.ID_YES:
-                return self.export_sales(event)
-
+            if self.tip == True:
+                ret = {"code":500,"msg":"运行时发生了一个未知错误"}
+            else:
+                ret = {"code":500,"msg":"自动运行任务失败，请手动重试"}    
         # 导出上传数据
         self.add_log(ret['msg'])
         
@@ -170,36 +330,45 @@ class Ep(ui.MyFrame1):
         if ret['code'] == 200:
             self.add_log("进项票导出成功，正在上传")
             sales_name = self.config['upload']['sales_name'] + time.strftime("%Y%m%d",  time.localtime()) + self.config['upload']['sales_file_ext']
-            sales_upload_link = self.config['link']['host'] + self.config['upload']['sales_upload_link']
+            sales_upload_link = self.host + self.config['upload']['sales_upload_link']
             post_data = {"credit_code":self.credit_code,"period":ym_split[0]+ym_split[1],"submit":"1","tax_import":"1"}
             ret = self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
             if ret['code'] == 200:
+                if type(self.running_index) == int:
+                    self.m_listBox2.Delete(self.running_index)
+                    self.running_index = False
                 return ret
         elif ret['code'] == 404:
-            self.add_exp_log({'content':'当前所属期 %s 没有进项票数据' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'1','period':ym_split[0]+ym_split[1]})
-            dlg = wx.MessageDialog(None, ret['msg'], u"提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
-            if dlg.ShowModal() == wx.ID_OK:
-                pass
+            self.add_exp_log({'content':'当前所属期 %s 没有进项票（航信）数据' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'1','period':ym_split[0]+ym_split[1]})
+            if self.tip == True:
+                dlg = wx.MessageDialog(None, ret['msg'], u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                if dlg.ShowModal() == wx.ID_OK:
+                    self.m_listBox2.Delete(self.running_index)
+                    pass
         else:
-            dlg = wx.MessageDialog(None, ret['msg'] + " 是否重新运行", u"发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
-            if dlg.ShowModal() == wx.ID_YES:
-                return self.export_sales(event)
-        self.add_exp_log({'content':'进项票数据（%s）导出失败' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'2','period':ym_split[0]+ym_split[1]})        
+            if self.tip == True:
+                dlg = wx.MessageDialog(None, ret['msg'] + " 是否重新运行", u"鑫山财务-开票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+                if dlg.ShowModal() == wx.ID_YES:
+                    return self.export_sales(event)
+        self.add_exp_log({'content':'航信进项票数据(%s)导出失败' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'2','period':ym_split[0]+ym_split[1]})        
+        self.running_index = False
         return {"code":500,"text":"上传失败"}
 
 
     def upload_export(self,sales_name,sales_upload_link,post_data,ym_split):
         up_res = self.upload_file(sales_name,sales_upload_link,post_data)
-        self.add_log(up_res['text'])
         if up_res['code'] == 0:
-            self.add_exp_log({'content':'进项票数据（%s）导出并上传成功' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'1','period':ym_split[0]+ym_split[1]})
-            dlg = wx.MessageDialog(None, u"上传成功", u"提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
-            if dlg.ShowModal() == wx.ID_OK:
-                # self.Close(True)
-                pass
+            self.add_exp_log({'content':'航信进项票数据(%s)导出并上传成功' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'1','status':'1','period':ym_split[0]+ym_split[1]})
+            if self.tip == True:
+                dlg = wx.MessageDialog(None, u"上传成功", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                if dlg.ShowModal() == wx.ID_OK:
+                    # self.Close(True)
+                    pass
+
+            self.add_log('航信进项票(%s)上传成功' % (ym_split[0]+ym_split[1]))    
             return {"code":200,"text":"上传成功"}
         else:
-            dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+            dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"鑫山财务-开票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
             if dlg.ShowModal() == wx.ID_YES:
                 return self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
         return {"code":500,"text":"数据已导出，但上传失败"}     
@@ -218,46 +387,79 @@ class Ep(ui.MyFrame1):
         except:
             return {"code":500,"text":"网络异常，上传失败"}
 
+    def toggle( self, event ):
+        if self.m_radioBtn6.GetValue() == True:
+            self.set_config('app','default',6)
+        if self.m_radioBtn7.GetValue() == True:
+            dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+            if dlg.ShowModal() == wx.ID_OK:
+                self.m_radioBtn6.SetValue(True)
+                pass
+
     # 添加日志
     def add_log(self,text):
         if text == "":
             return False
         self.m_listBox3.InsertItems(["%s %s" % (time.strftime("%M:%S", time.localtime()),text)],0)
 
-    # 添加日志
+    # 添加任务
     def add_task(self):
-        headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-        add_link = self.config['link']['host'] + self.config['log']['task_url']
-        req = requests.post(add_link, data={"credit_code":self.credit_code}, headers=headers)
-        task = req.json()
+        add_link = self.host + self.config['log']['task_url']
+        task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_export_client_id':self.uid})
+
         if len(task) == 0 or 'code' in task:
             self.m_listBox2.InsertItems(["暂无任务"],0)
         else:
             self.m_listBox2.InsertItems(task,0)
 
+    def remove_task(self):
+        cc = self.m_listBox2.GetCount()
+        for i in range(cc):
+            self.m_listBox2.Delete(0)
+
+    def post_link(self,link,post_data):
+        headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+        try:
+            req = requests.post(link, data=post_data, headers=headers)
+            resp = req.json()
+            return resp
+        except:
+            return {"code":500,"text":"网络异常，请求失败"}
+
+
     # 开票软件运行状态
-    def app_status(self):
+    def app_status(self):        
         self.set_config('log','last_run_time',time.strftime("%Y-%m-%d %H:%M", time.localtime()))
         # 自启动的 从配置文件获取用户信息
-
         print('检测启动方式')
         if '/autorun' in sys.argv:
             self.credit_code = self.config['log']['credit_code']
-            pname = self.config['log']['corpname']
         else:
-            print('打开航天信息客户端获取信息')
-            auto_app = AutoExport.Export()
-            auto_app.do_ready()
-            self.credit_code,pname = auto_app.user_info()
-        if self.credit_code != "":
+            self.credit_code = pname =''
+            if self.config['app']['default'] == '6':
+                print('打开航信信息客户端获取信息')
+                auto_app = AutoExport.Export()
+                auto_app.do_ready()
+                self.credit_code,pname = auto_app.user_info()
+        if pname != "":
             self.set_config('log','credit_code',self.credit_code)
             self.set_config('log','corpname',pname)
             self.set_status('开票软件已运行 | ' + pname)
             self.add_task()
         else:
             self.add_log("获取用户信息失败")
-            print('登录失败')
-            # add_exp_log({'content':'登录开票软件失败，未获取用户信息','credit_code':'91340100MA2NPN203B','source':'1','corpid':'20','action':'1','period':'201908'})
+            if self.credit_code != '':
+                credit_code = self.credit_code
+            else:
+                credit_code = self.config['log']['credit_code']
+            if credit_code != '':
+                print('登录失败,上传日志')
+                self.add_exp_log({'content':'登录开票软件失败','credit_code':credit_code})
+
+        # 如果从电脑获取的uid 跟本地uid不一致，则修改系统
+        if self.config['client']['uid'] != self.uid and self.credit_code != '':
+            self.set_config('client','uid',self.uid)
+
         # 检测上个月数据是否导出
         # today = datetime.date.today()
         # first = today.replace(day=1)
@@ -287,30 +489,45 @@ class Ep(ui.MyFrame1):
         self.config.set(section,key,re.sub(r'%','#53',set_val.strip('|')))
         self.config.write(open(self.config_file,'w',encoding='utf-8'))
 
-    def do_action(self,event):
+    # 任务框点击处理
+    def task_click(self,event):
+        # 正在运行
         listbox = event.GetEventObject()
         select_list = listbox.GetStringSelection()
-        
-        sel_split = select_list.split(' ')
+        self.running_index = listbox.GetSelection()
+        # 默认消息弹框提醒
+        self.tip = True
+        self.parse_action(select_list)
+              
+
+    def parse_action(self,actin_text):
+        sel_split = actin_text.split(' ')
         if len(sel_split) < 2:
             return False
+
         y = sel_split[0].replace('年','')
         m = sel_split[1].replace('月份','')
         m = '%02d' % int(m)
-        self.seset_by_data(y+'-'+m)
+        self.reset_by_data(y+'-'+m)
         if '销项' in sel_split[2]:
-            ret = self.export_sales(event)
-        if ret['code'] == 200:    
-            listbox.Delete(listbox.GetSelection())
+            if '航天' in sel_split[2]:
+                return self.export_sales(None)
+            else:
+                dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                if dlg.ShowModal() == wx.ID_OK:
+                    pass   
 
     def add_exp_log(self,data):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-        add_link = self.config['link']['host'] + self.config['log']['post_url']
+        add_link = self.host + self.config['log']['post_url']
         return requests.post(add_link, data=data, headers=headers)
 
 app = wx.App()
 frame = Ep(None)
-frame.start()
+ready = frame.start()
+if ready == False:
+    sys.exit()
+
 if '/autorun' in sys.argv:
     show_fram = False
 else:

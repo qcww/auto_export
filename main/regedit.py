@@ -4,6 +4,7 @@ import winreg
 import os
 import time
 import sys
+import uuid
 
 def add_auto_run(path_file):
     # zdynames = os.path.basename(__file__)     # 当前文件名的名称如：newsxiao.py
@@ -44,6 +45,45 @@ def set_client_path():
     except:
         return False
 
+def get_client_path():
+    try:
+        reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe")
+        app_path, _ = winreg.QueryValueEx(reg_key, "Path")
+    except:
+        app_path = ''
+
+    return app_path
+
+def set_pc_id():
+    reg_root = win32con.HKEY_LOCAL_MACHINE
+    reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe"
+    reg_flags = win32con.WRITE_OWNER|win32con.KEY_WOW64_64KEY|win32con.KEY_ALL_ACCESS
+
+    try:
+        #直接创建（若存在，则为获取）
+        key, _ = win32api.RegCreateKeyEx(reg_root, reg_path, reg_flags)
+
+        #设置项
+        uid = uuid.uuid1()
+        win32api.RegSetValueEx(key, "uid", 0, win32con.REG_SZ, str(uid))
+
+        #关闭
+        win32api.RegCloseKey(key)
+        return uid
+    except:
+        return ''
+
+def get_pc_id():
+    try:
+        reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe")
+        uid, _ = winreg.QueryValueEx(reg_key, "uid")
+        first = False
+    except:
+        uid = set_pc_id()
+        first = True
+
+    return uid,first
+
 def get_app_path(app_path,app_name):
     app_path = app_path
     if app_path == "":
@@ -75,12 +115,3 @@ def get_credit_code():
     except:
         credit_code = ''
     return credit_code    
-
-def get_client_path():
-    try:
-        reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe")
-        app_path, _ = winreg.QueryValueEx(reg_key, "Path")
-    except:
-        app_path = ''
-
-    return app_path
