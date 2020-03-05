@@ -17,13 +17,15 @@ import threading
 import json
 import UsbCheck
 import ContactUs
+import layer
+import multiprocessing
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, frame):
         wx.adv.TaskBarIcon.__init__(self)
         self.frame = frame
         self.SetIcon(wx.Icon(name='mondrian.ico', type=wx.BITMAP_TYPE_ICO), '鑫山财务-开票辅助工具')
-        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DCLICK, self.OnTaskBarLeftDClick)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.OnTaskBarLeftDClick)
  
     def OnTaskBarLeftDClick(self, event):
         if self.frame.IsIconized():
@@ -60,18 +62,9 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         return menu
 
 
-
 class Ep(ui.MyFrame1):
-    def __init__(
-            self, parent=None, id=wx.ID_ANY, title='鑫山财务-开票辅助工具', pos=wx.DefaultPosition,
-            size=wx.DefaultSize, style=wx.DEFAULT_FRAME_STYLE
-            ):
-        ui.MyFrame1.__init__(self, parent)  
- 
-        # create a welcome screen
-        # screen = wx.Image(self.screenIm).ConvertToBitmap()
-        # wx.SplashScreen(screen, wx.SPLASH_CENTRE_ON_SCREEN | wx.SPLASH_TIMEOUT,1000, None, -1)
-        # wx.Yield()
+    def __init__(self, parent=None, id=wx.ID_ANY, title='鑫山财务-开票辅助工具'):
+        ui.MyFrame1.__init__(self, parent)
        
         self.SetIcon(wx.Icon('mondrian.ico', wx.BITMAP_TYPE_ICO))
         panel = wx.Panel(self, wx.ID_ANY)
@@ -98,10 +91,17 @@ class Ep(ui.MyFrame1):
         self.Hide()
 
     def contact_us(self,event):
-        print('联系我们')
-        contact = ContactUs.MyPanel1(self, parent)
+        contact = layer.Contact(None)
+        contact.Show()
+    def guide(self,event):
+        guide = layer.Guide(None)
+        guide.Show()
+
+    def run_now( self, event ):
+        print('run now')
 
     def start(self):
+        self.ask_run = False
         # 默认消息弹框提醒
         self.tip = True
         self.running_index = False
@@ -113,7 +113,7 @@ class Ep(ui.MyFrame1):
 
         self.uid,first_run = regedit.get_pc_id()
         if first_run == True:
-            self.post_link(self.config['client']['update_client_url',{"invoice_export_client_id":self.uid}])
+            self.post_link(self.config['client']['update_client_url',{"invoice_client_id":self.uid}])
         try:
             self.config = configparser.ConfigParser()
             self.config.read(self.config_file,encoding='utf-8')
@@ -123,9 +123,11 @@ class Ep(ui.MyFrame1):
             if dlg.ShowModal() == wx.ID_YES:
                 return False
             pass
-
+        self.ly = layer.AskRun(None)
+        
         self.reset_date()
         self.set_status('已准备')
+        
 
         if self.check_user_service(True) == False:
             return False
@@ -139,7 +141,14 @@ class Ep(ui.MyFrame1):
         self.check_usb_action()
         # self.app_status()
         self.connect_service()
+        self.check_task()
         return True
+
+    def choose_call_back(self,run = False):
+        if run == True:
+            print('立即执行')
+        else:
+            print('延迟执行')     
 
     def check_usb_action(self):
         # self.run_status = bool(1 - self.run_status)
@@ -163,8 +172,10 @@ class Ep(ui.MyFrame1):
                 self.reset_usb_status(self.usb_insert)
             elif self.his_usb_status != self.usb_insert:
                 self.reset_usb_status(self.usb_insert)
+
         if self.usb_insert == False:
-            self.remove_task()
+            if first == True:
+                self.remove_task()
             self.set_status('已准备')
         time.sleep(5)
         return self.check_usb_staus(False)
@@ -174,7 +185,7 @@ class Ep(ui.MyFrame1):
         self.his_usb_status = self.usb_insert
         if self.usb_insert == True:
             self.app_status()
-        ret = self.post_link(self.host + self.config['client']['update_usb_url'],{"invoice_export_client_id":self.uid,"usb_status":int(usb_status)})
+        ret = self.post_link(self.host + self.config['client']['update_usb_url'],{"invoice_client_id":self.uid,"usb_status":int(usb_status)})
         print(ret)
 
     # 修改客户端usb状态
@@ -194,25 +205,46 @@ class Ep(ui.MyFrame1):
             self.cond = threading.Condition() # 锁
             self.mythread.start()
 
-        # if self.run_status == True:
-        #     # self.run_text.set('启动中')
-        #     self.run_text.set('运行中')
-        # else:
-        #     delattr(self,'mythread')
-        #     self.ws.close()
-        #     self.run_text.set('停止中')
+    def check_task(self):
+        if hasattr(self,'win_check') == False:
+            self.err_connect = 0
+            self.win_check = threading.Thread(target=self.check_task_win)
+            self.cond = threading.Condition() # 锁
+            self.win_check.start()
+
+    def check_task_win(self):
+        # 计时
+        time_range = 10
+        while self.ask_run == True:
+            print('倒计时',time_range)
+            time_range -= 1
+            time.sleep(1)
+            if time_range == 0:
+                self.ask_run = False
+            # self.ask_run = False    
+
+        # return self.check_task()        
+        
 
     def create_websocket(self):
         def on_message(ws, message):
             msg = json.loads(message)
+            
+            if msg['type'] == 'ping':
+                # print('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
+                ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
             # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
             if msg['type'] == 'action' and msg['data'] != '':
+                print(msg)
                 # 默认消息弹框提醒
-                self.tip = False
+                if self.request_client_id == '':
+                    self.request_client_id = msg['request_client_id']
+                    self.reply_explore(msg['request_client_id'],"连接税控盘后重试")
+                else:
+                    self.reply_explore(msg['request_client_id'],"当前任务执行中")
                 self.m_listBox2.InsertItems([str(msg['data'])],0)
                 self.running_index = 0
-                self.parse_action(str(msg['data']))
-                
+                self.ly.call(self)
 
         def on_error(ws, error):
             now = time.strftime('%S ',time.localtime(time.time()))
@@ -220,6 +252,7 @@ class Ep(ui.MyFrame1):
                 self.add_log('服务器连接已断开')
             self.err_connect += 1
             time.sleep(8)
+            # print(error)
             self.create_websocket()
 
         def on_close(ws):
@@ -231,6 +264,7 @@ class Ep(ui.MyFrame1):
             uid,_ = regedit.get_pc_id()
             ws.send('{"type":"login","room_id":"%s","client_name":"%s"}' % (self.config['client']['room_id'],uid))
 
+        self.request_client_id = ''
         websocket.enableTrace(True)
         ws = websocket.WebSocketApp("ws://im.itking.cc:12366",
                                     on_message = on_message,
@@ -261,6 +295,11 @@ class Ep(ui.MyFrame1):
                     return False
         return True
 
+    # 回复浏览器消息
+    def reply_explore(self,request_client_id,text):
+        print('回复消息',request_client_id)
+        self.ws.send('{"type":"reply","room_id":"%s","request_client_id":"%s","client_name":"%s","data":"%s"}' % (self.config['client']['room_id'],request_client_id,self.uid,text))
+
     # 软件下载链接
     def set_dw_link(self):
         self.m_hyperlink2.SetURL(self.config['app']['download_ht']) 
@@ -290,6 +329,13 @@ class Ep(ui.MyFrame1):
     # 界面状态栏状态
     def set_status(self,text):
         self.m_statusBar1.SetStatusText(' %s ' % text)
+
+    # 导出进项票
+    def export_purchase(self,event):
+        dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.m_radioBtn6.SetValue(True)
+            pass
 
     # 导出销项票
     def export_sales(self,event):
@@ -405,12 +451,15 @@ class Ep(ui.MyFrame1):
     # 添加任务
     def add_task(self):
         add_link = self.host + self.config['log']['task_url']
-        task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_export_client_id':self.uid})
+        task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_client_id':self.uid})
 
         if len(task) == 0 or 'code' in task:
             self.m_listBox2.InsertItems(["暂无任务"],0)
         else:
             self.m_listBox2.InsertItems(task,0)
+            self.running_index = 0
+            self.ly.call(self)
+            
 
     def remove_task(self):
         cc = self.m_listBox2.GetCount()
@@ -499,6 +548,10 @@ class Ep(ui.MyFrame1):
         self.tip = True
         self.parse_action(select_list)
               
+    def parse_task(self,task_index = 0):
+        task = '2019年 11月份 航天销项票数据导出'
+        self.running_index = 0
+        self.parse_action(task)
 
     def parse_action(self,actin_text):
         sel_split = actin_text.split(' ')
