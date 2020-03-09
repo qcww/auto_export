@@ -17,7 +17,7 @@ import wx.xrc
 class use_it ( wx.Dialog ):
 
 	def __init__( self, parent ):
-		wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 512,461 ), style = wx.DEFAULT_DIALOG_STYLE )
+		wx.Dialog.__init__ ( self, parent, id = wx.ID_ANY, title = wx.EmptyString, pos = wx.DefaultPosition, size = wx.Size( 513,461 ), style = wx.DEFAULT_DIALOG_STYLE )
 
 		self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
 
@@ -42,7 +42,7 @@ class use_it ( wx.Dialog ):
 
 		sbSizer2 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"软件介绍" ), wx.VERTICAL )
 
-		self.m_staticText8 = wx.StaticText( sbSizer2.GetStaticBox(), wx.ID_ANY, u"本软件旨在辅助开票软件及相关报税所需软件，导出并自动上传会计报税做账所", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
+		self.m_staticText8 = wx.StaticText( sbSizer2.GetStaticBox(), wx.ID_ANY, u"软件旨在辅助开票软件及相关报税所需软件，导出并自动上传会计报税做账所", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
 		self.m_staticText8.Wrap( -1 )
 
 		sbSizer2.Add( self.m_staticText8, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
@@ -57,7 +57,7 @@ class use_it ( wx.Dialog ):
 
 		sbSizer3 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"软件安装" ), wx.VERTICAL )
 
-		self.m_staticText14 = wx.StaticText( sbSizer3.GetStaticBox(), wx.ID_ANY, u"本软件无需安装，建议放置于非系统盘下，使用软件前请确保电脑系统win7及", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
+		self.m_staticText14 = wx.StaticText( sbSizer3.GetStaticBox(), wx.ID_ANY, u"软件无需安装，建议放置于非系统盘下，使用软件前请确保电脑系统win7及", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
 		self.m_staticText14.Wrap( -1 )
 
 		sbSizer3.Add( self.m_staticText14, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
@@ -67,7 +67,7 @@ class use_it ( wx.Dialog ):
 
 		sbSizer3.Add( self.m_staticText15, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
 
-		self.m_staticText17 = wx.StaticText( sbSizer3.GetStaticBox(), wx.ID_ANY, u"本软件支持开机自启动(需首次打开开票软件并运行本软件)", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
+		self.m_staticText17 = wx.StaticText( sbSizer3.GetStaticBox(), wx.ID_ANY, u"软件支持开机自启动(需首次打开开票软件并运行本软件)", wx.DefaultPosition, wx.Size( 420,-1 ), 0 )
 		self.m_staticText17.Wrap( -1 )
 
 		sbSizer3.Add( self.m_staticText17, 0, wx.ALL|wx.ALIGN_CENTER_HORIZONTAL, 5 )
@@ -77,7 +77,7 @@ class use_it ( wx.Dialog ):
 
 		sbSizer4 = wx.StaticBoxSizer( wx.StaticBox( self, wx.ID_ANY, u"注意事项" ), wx.VERTICAL )
 
-		self.m_staticText18 = wx.StaticText( sbSizer4.GetStaticBox(), wx.ID_ANY, u"本软件仅用于辅助上传会计做账报税所需资料，无毒无广告，尊重客户隐私，", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_staticText18 = wx.StaticText( sbSizer4.GetStaticBox(), wx.ID_ANY, u"软件仅用于辅助上传会计做账报税所需资料，无毒无广告，尊重客户隐私，", wx.DefaultPosition, wx.DefaultSize, 0 )
 		self.m_staticText18.Wrap( -1 )
 
 		self.m_staticText18.SetMinSize( wx.Size( 420,-1 ) )

@@ -107,13 +107,10 @@ class Ep(ui.MyFrame1):
         self.running_index = False
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
-            self.config_file = regedit.get_client_path()+"\\config\\config.ini"
-        else:
-            regedit.set_client_path()
+            self.config_file = regedit.get_client_path()+"\\main\\config\\config.ini"
 
         self.uid,first_run = regedit.get_pc_id()
-        if first_run == True:
-            self.post_link(self.config['client']['update_client_url',{"invoice_client_id":self.uid}])
+        print('是否首次运行',first_run)
         try:
             self.config = configparser.ConfigParser()
             self.config.read(self.config_file,encoding='utf-8')
@@ -123,6 +120,9 @@ class Ep(ui.MyFrame1):
             if dlg.ShowModal() == wx.ID_YES:
                 return False
             pass
+
+        if first_run == True:
+            ret = self.post_link(self.host + self.config['client']['update_client_url'],{"invoice_client_id":"%s" % self.uid})
         self.ly = layer.AskRun(None)
         
         self.reset_date()
@@ -134,10 +134,7 @@ class Ep(ui.MyFrame1):
 
         self.set_dw_link()
         self.add_log('辅助工具已打开')
-        # 设置开机启动
-        main_app = regedit.get_client_path() + self.config['client']['name'] + " /autorun"
-        if regedit.add_auto_run(main_app) == False:
-            print('设置开机启动失败')
+
         self.check_usb_action()
         # self.app_status()
         self.connect_service()
@@ -229,22 +226,17 @@ class Ep(ui.MyFrame1):
     def create_websocket(self):
         def on_message(ws, message):
             msg = json.loads(message)
-            
             if msg['type'] == 'ping':
-                # print('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
                 ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
             # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
             if msg['type'] == 'action' and msg['data'] != '':
                 print(msg)
-                # 默认消息弹框提醒
-                if self.request_client_id == '':
-                    self.request_client_id = msg['request_client_id']
-                    self.reply_explore(msg['request_client_id'],"连接税控盘后重试")
-                else:
-                    self.reply_explore(msg['request_client_id'],"当前任务执行中")
+                if self.usb_insert == False:
+                    self.reply_explore(msg['request_client_id'],"导出失败，检测到税控盘未插入")
                 self.m_listBox2.InsertItems([str(msg['data'])],0)
                 self.running_index = 0
-                self.ly.call(self)
+                rt = self.ly.call(self)
+                self.reply_explore(msg['request_client_id'],rt)
 
         def on_error(ws, error):
             now = time.strftime('%S ',time.localtime(time.time()))
@@ -423,7 +415,7 @@ class Ep(ui.MyFrame1):
     # 上传文件
     def upload_file(self,file_name,upload_link,data):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-        file_name = './exp_file/'+file_name
+        file_name = regedit.get_client_path()+'\\main\exp_file\\'+file_name
         if os.path.exists(file_name) == False:
             return {"code":500,"text":"未找到导出的数据文件"}
         files = {'upfile': open(file_name, 'rb')}
@@ -454,6 +446,7 @@ class Ep(ui.MyFrame1):
         task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_client_id':self.uid})
 
         if len(task) == 0 or 'code' in task:
+            self.remove_task()
             self.m_listBox2.InsertItems(["暂无任务"],0)
         else:
             self.m_listBox2.InsertItems(task,0)
@@ -474,7 +467,6 @@ class Ep(ui.MyFrame1):
             return resp
         except:
             return {"code":500,"text":"网络异常，请求失败"}
-
 
     # 开票软件运行状态
     def app_status(self):        
@@ -549,7 +541,7 @@ class Ep(ui.MyFrame1):
         self.parse_action(select_list)
               
     def parse_task(self,task_index = 0):
-        task = '2019年 11月份 航天销项票数据导出'
+        task = self.m_listBox2.GetString(0)
         self.running_index = 0
         self.parse_action(task)
 

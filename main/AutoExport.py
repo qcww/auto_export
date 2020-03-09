@@ -22,9 +22,8 @@ class Export:
         # os.chdir(config_path)
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
-            self.config_file = regedit.get_client_path()+"\\config\\config.ini"
-        else:
-            regedit.set_client_path()
+            self.config_file = regedit.get_client_path()+"\\main\\config\\config.ini"
+
         self.config = configparser.ConfigParser()
         self.config.read(self.config_file,encoding='utf-8')
         locale.setlocale(locale.LC_ALL,'en') 
@@ -350,7 +349,7 @@ class Export:
             save_win.set_focus()
             time.sleep(1)
             save_win.child_window(title="上一个位置", control_type="Button").click()
-            pwd = os.getcwd()+'\exp_file'
+            pwd = regedit.get_client_path()+'\main\exp_file'
             # print(pwd)
             save_win.child_window(title="地址", class_name="Edit").set_text(pwd)
 
