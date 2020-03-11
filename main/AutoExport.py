@@ -226,17 +226,27 @@ class Export:
             self.login()
         except:
             pass
-        
+        # 关闭重复弹框的提醒框
         try:
-            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title_re="增值税发票税控开票软件",auto_id = "MDIMainForm")
+            run_over = Application(backend='uia').connect(title="CusMessageBox")
+            if run_over.window(title="CusMessageBox").exists() == True:
+                run_over.window(title="CusMessageBox").close()
+        except:
+            pass
+
+        try:
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
             ac = app.windows()
             # 关闭其它弹框
+
             if len(ac) > 1:
                 for i in ac:
+                    print(i.automation_id())
                     if i.automation_id() != 'MDIMainForm':
                         i.close()
-
-            ac = app.windows()[0]
+            ac = app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
+            if ac.SysMessageBox.exists() == True:
+                ac.SysMessageBox.close()
             ac.maximize()
             ac.set_focus()
         except:

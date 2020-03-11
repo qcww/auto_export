@@ -549,7 +549,6 @@ class Ep(ui.MyFrame1):
         sel_split = actin_text.split(' ')
         if len(sel_split) < 2:
             return False
-
         y = sel_split[0].replace('年','')
         m = sel_split[1].replace('月份','')
         m = '%02d' % int(m)
