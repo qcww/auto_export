@@ -7,6 +7,7 @@ import configparser
 import os
 import regedit
 import sys
+import re
 
 class start:
     def __init__(self):
@@ -20,7 +21,9 @@ class start:
 
         if '.exe' in sys.argv[0]:
             # 设置开机启动
-            main_app = regedit.get_client_path() + sys.argv[0] + " /autorun"
+            pp = re.findall(r'.[^\\]*\.exe',sys.argv[0])
+            ename = pp[0].replace('\\','')
+            main_app = regedit.get_client_path() + '\\' + ename + " /autorun"
             if regedit.add_auto_run(main_app) == False:
                 print('设置开机启动失败')
             else:
