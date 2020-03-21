@@ -18,7 +18,7 @@ import wx.adv
 class MyFrame1 ( wx.Frame ):
 
 	def __init__( self, parent ):
-		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-开票辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,375 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+		wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = u"鑫山财务-发票导出辅助工具", pos = wx.DefaultPosition, size = wx.Size( 450,375 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 
 		self.SetSizeHints( wx.Size( 450,375 ), wx.Size( 450,375 ) )
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )

@@ -30,7 +30,7 @@ class use_it ( wx.Dialog ):
 
 		bSizer5.Add( self.m_staticText13, 0, wx.ALL, 5 )
 
-		self.m_staticText6 = wx.StaticText( self, wx.ID_ANY, u"鑫山财务税控开票辅助软件使用说明", wx.DefaultPosition, wx.Size( -1,-1 ), 0 )
+		self.m_staticText6 = wx.StaticText( self, wx.ID_ANY, u"鑫山财务税控发票导出辅助软件使用说明", wx.DefaultPosition, wx.Size( -1,-1 ), 0 )
 		self.m_staticText6.Wrap( -1 )
 
 		self.m_staticText6.SetFont( wx.Font( 13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString ) )

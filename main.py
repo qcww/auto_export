@@ -24,7 +24,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, frame):
         wx.adv.TaskBarIcon.__init__(self)
         self.frame = frame
-        self.SetIcon(wx.Icon(name='mondrian.ico', type=wx.BITMAP_TYPE_ICO), '鑫山财务-开票辅助工具')
+        self.SetIcon(wx.Icon(name='mondrian.ico', type=wx.BITMAP_TYPE_ICO), '鑫山财务-发票导出辅助工具')
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, self.OnTaskBarLeftDClick)
  
     def OnTaskBarLeftDClick(self, event):
@@ -63,7 +63,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
 
 class Ep(ui.MyFrame1):
-    def __init__(self, parent=None, id=wx.ID_ANY, title='鑫山财务-开票辅助工具'):
+    def __init__(self, parent=None, id=wx.ID_ANY, title='鑫山财务-发票导出辅助工具'):
         ui.MyFrame1.__init__(self, parent)
        
         self.SetIcon(wx.Icon('mondrian.ico', wx.BITMAP_TYPE_ICO))
@@ -107,7 +107,7 @@ class Ep(ui.MyFrame1):
         self.running_index = False
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
-            self.config_file = regedit.get_client_path()+"\\main\\config\\config.ini"
+            self.config_file = regedit.get_client_path()+"\\config\\config.ini"
 
         self.uid,first_run = regedit.get_pc_id()
         print('是否首次运行',first_run)
@@ -116,7 +116,7 @@ class Ep(ui.MyFrame1):
             self.config.read(self.config_file,encoding='utf-8')
             self.host = self.config['link']['host']
         except:
-            dlg = wx.MessageDialog(None, "检测到配置文件丢失", u"错误提示(鑫山财务-开票辅助工具)", wx.OK | wx.STAY_ON_TOP)
+            dlg = wx.MessageDialog(None, "检测到配置文件丢失", u"错误提示(鑫山财务-发票导出辅助工具)", wx.OK | wx.STAY_ON_TOP)
             if dlg.ShowModal() == wx.ID_YES:
                 return False
             pass
@@ -279,11 +279,11 @@ class Ep(ui.MyFrame1):
 
         if check_user['code'] == 1:
             if first == True:
-                dlg = wx.MessageDialog(None, check_user['text'] + '，是否继续运行', u"鑫山财务-开票辅助工具 提示", wx.YES_NO | wx.STAY_ON_TOP)
+                dlg = wx.MessageDialog(None, check_user['text'] + '，是否继续运行', u"鑫山财务-发票导出辅助工具 提示", wx.YES_NO | wx.STAY_ON_TOP)
                 if dlg.ShowModal() == wx.ID_NO:
                     return False
             else:
-                dlg = wx.MessageDialog(None, check_user['text'], u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP)
+                dlg = wx.MessageDialog(None, check_user['text'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP)
                 if dlg.ShowModal() == wx.ID_OK:
                     return False
         return True
@@ -329,11 +329,12 @@ class Ep(ui.MyFrame1):
         ym_split = ym.split('-')
         period = ym_split[0]+ym_split[1]
         auto_app = EntryExport.fpdk()
+        self.tip = True
         # 检查浏览器驱动
         check_run = auto_app.check_driver()
         if check_run != '':
             self.add_log(check_run)
-            dlg = wx.MessageDialog(None,check_run, u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP)
+            dlg = wx.MessageDialog(None,check_run, u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP)
             if dlg.ShowModal() == wx.ID_OK:
                 return False
         # 最小化本应用窗口
@@ -349,17 +350,21 @@ class Ep(ui.MyFrame1):
                 if type(self.running_index) == int:
                     self.m_listBox2.Delete(self.running_index)
                     self.running_index = False
-                return ret
+                if self.tip == True:
+                    dlg = wx.MessageDialog(None, ret['text'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                    if dlg.ShowModal() == wx.ID_OK:
+                        pass
+                return ret    
         elif ret['code'] == 404:
             self.add_exp_log({'content':'当前所属期 %s 没有进项票数据' % period,"credit_code":self.credit_code,'action':'1','status':'1','period':period})
             if self.tip == True:
-                dlg = wx.MessageDialog(None, ret['text'], u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                dlg = wx.MessageDialog(None, ret['text'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     self.m_listBox2.Delete(self.running_index)
                     pass
         else:
             if self.tip == True:
-                dlg = wx.MessageDialog(None, ret['text'] + " 是否重新运行", u"鑫山财务-开票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+                dlg = wx.MessageDialog(None, ret['text'] + " 是否重新运行", u"鑫山财务-发票导出辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     return self.export_sales(event)
         self.add_exp_log({'content':'进项票数据(%s)导出失败' % period,"credit_code":self.credit_code,'action':'1','status':'2','period':period})        
@@ -383,7 +388,7 @@ class Ep(ui.MyFrame1):
         if self.usb_insert == False:
             self.add_log('导出失败，检测到税控盘未插入')
             if self.tip == True:
-                dlg = wx.MessageDialog(None, u"未检测到税控盘，请插入后重试", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                dlg = wx.MessageDialog(None, u"未检测到税控盘，请插入后重试", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     pass
             return False
@@ -426,13 +431,13 @@ class Ep(ui.MyFrame1):
         elif ret['code'] == 404:
             self.add_exp_log({'content':'当前所属期 %s 没有销项票（航信）数据' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'1','period':ym_split[0]+ym_split[1]})
             if self.tip == True:
-                dlg = wx.MessageDialog(None, ret['msg'], u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                dlg = wx.MessageDialog(None, ret['msg'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     self.m_listBox2.Delete(self.running_index)
                     pass
         else:
             if self.tip == True:
-                dlg = wx.MessageDialog(None, ret['msg'] + " 是否重新运行", u"鑫山财务-开票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+                dlg = wx.MessageDialog(None, ret['msg'] + " 是否重新运行", u"鑫山财务-发票导出辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     return self.export_sales(event)
         self.add_exp_log({'content':'航信销项票数据(%s)导出失败' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'2','period':ym_split[0]+ym_split[1]})        
@@ -445,7 +450,7 @@ class Ep(ui.MyFrame1):
         if up_res['code'] == 0:
             self.add_exp_log({'content':'航信销项票数据(%s)导出并上传成功' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'1','period':ym_split[0]+ym_split[1]})
             if self.tip == True:
-                dlg = wx.MessageDialog(None, u"上传成功", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                dlg = wx.MessageDialog(None, u"上传成功", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     # self.Close(True)
                     pass
@@ -453,7 +458,7 @@ class Ep(ui.MyFrame1):
             self.add_log('航信销项票(%s)上传成功' % (ym_split[0]+ym_split[1]))    
             return {"code":200,"text":"上传成功"}
         else:
-            dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"鑫山财务-开票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+            dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"鑫山财务-发票导出辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
             if dlg.ShowModal() == wx.ID_YES:
                 return self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
         return {"code":500,"text":"数据已导出，但上传失败"}     
@@ -477,7 +482,7 @@ class Ep(ui.MyFrame1):
         if self.m_radioBtn6.GetValue() == True:
             self.set_config('app','default',6)
         if self.m_radioBtn7.GetValue() == True:
-            dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
             if dlg.ShowModal() == wx.ID_OK:
                 self.m_radioBtn6.SetValue(True)
                 pass
@@ -605,7 +610,7 @@ class Ep(ui.MyFrame1):
             if '航天' in sel_split[2]:
                 return self.export_sales(None)
             else:
-                dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-开票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     pass
         elif '进项票勾选认证' in sel_split[2]:
