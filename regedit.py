@@ -82,7 +82,7 @@ def get_pc_id():
         uid = set_pc_id()
         first = True
 
-    return str(uid),first
+    return uid,first
 
 def get_app_path(app_path,app_name):
     app_path = app_path
