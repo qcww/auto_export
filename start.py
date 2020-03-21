@@ -11,7 +11,7 @@ import re
 
 class start:
     def __init__(self):
-        self.config_file = "./main/config/config.ini"
+        self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
             self.config_file = regedit.get_client_path()+"\\config\\config.ini"
         else:

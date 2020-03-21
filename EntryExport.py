@@ -29,7 +29,7 @@ class fpdk:
     def __init__(self):
         self.config_file = "./config/config.ini"
         if os.path.exists(self.config_file) == False:
-            self.config_file = regedit.get_client_path()+"\\main\\config\\config.ini"
+            self.config_file = regedit.get_client_path()+"\\config\\config.ini"
 
         self.config = configparser.ConfigParser()
         self.config.read(self.config_file,encoding='utf-8')
