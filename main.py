@@ -234,6 +234,9 @@ class Ep(ui.MyFrame1):
                 print(msg)
                 if self.usb_insert == False:
                     self.reply_explore(msg['request_client_id'],"导出失败，检测到税控盘未插入")
+                fir = self.m_listBox2.GetString(0)
+                if fir == '暂无任务':
+                    self.m_listBox2.Delete(0)
                 self.m_listBox2.InsertItems([str(msg['data'])],0)
                 self.running_index = 0
                 rt = self.ly.call(self)
@@ -324,12 +327,11 @@ class Ep(ui.MyFrame1):
         self.m_statusBar1.SetStatusText(' %s ' % text)
 
     # 导出进项票
-    def export_purchase(self,event):
+    def export_purchase(self,event,tip = True):
         ym = self.get_y_m()
         ym_split = ym.split('-')
         period = ym_split[0]+ym_split[1]
         auto_app = EntryExport.fpdk()
-        self.tip = True
         # 检查浏览器驱动
         check_run = auto_app.check_driver()
         if check_run != '':
@@ -350,20 +352,20 @@ class Ep(ui.MyFrame1):
                 if type(self.running_index) == int:
                     self.m_listBox2.Delete(self.running_index)
                     self.running_index = False
-                if self.tip == True:
+                if tip == True:
                     dlg = wx.MessageDialog(None, ret['text'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                     if dlg.ShowModal() == wx.ID_OK:
                         pass
                 return ret    
         elif ret['code'] == 404:
             self.add_exp_log({'content':'当前所属期 %s 没有进项票数据' % period,"credit_code":self.credit_code,'action':'1','status':'1','period':period})
-            if self.tip == True:
+            if tip == True:
                 dlg = wx.MessageDialog(None, ret['text'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     self.m_listBox2.Delete(self.running_index)
                     pass
         else:
-            if self.tip == True:
+            if tip == True:
                 dlg = wx.MessageDialog(None, ret['text'] + " 是否重新运行", u"鑫山财务-发票导出辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     return self.export_sales(event)
@@ -381,13 +383,13 @@ class Ep(ui.MyFrame1):
         return up_res
 
     # 导出销项票
-    def export_sales(self,event):
+    def export_sales(self,event,tip = True):
         # 默认消息弹框提醒
         ym = self.get_y_m()
         
         if self.usb_insert == False:
             self.add_log('导出失败，检测到税控盘未插入')
-            if self.tip == True:
+            if tip == True:
                 dlg = wx.MessageDialog(None, u"未检测到税控盘，请插入后重试", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     pass
@@ -409,7 +411,7 @@ class Ep(ui.MyFrame1):
             ret = auto_app.dw_excel(ym)
             auto_app.min_app()
         except:
-            if self.tip == True:
+            if tip == True:
                 ret = {"code":500,"msg":"运行时发生了一个未知错误"}
             else:
                 ret = {"code":500,"msg":"自动运行任务失败，请手动重试"}    
@@ -430,13 +432,13 @@ class Ep(ui.MyFrame1):
                 return ret
         elif ret['code'] == 404:
             self.add_exp_log({'content':'当前所属期 %s 没有销项票（航信）数据' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'1','period':ym_split[0]+ym_split[1]})
-            if self.tip == True:
+            if tip == True:
                 dlg = wx.MessageDialog(None, ret['msg'], u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     self.m_listBox2.Delete(self.running_index)
                     pass
         else:
-            if self.tip == True:
+            if tip == True:
                 dlg = wx.MessageDialog(None, ret['msg'] + " 是否重新运行", u"鑫山财务-发票导出辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     return self.export_sales(event)
@@ -502,6 +504,11 @@ class Ep(ui.MyFrame1):
             self.remove_task()
             self.m_listBox2.InsertItems(["暂无任务"],0)
         else:
+            fir = self.m_listBox2.GetString(0)
+            fir = self.m_listBox2.GetString(0)
+            if fir == '暂无任务':
+                self.m_listBox2.Delete(0)
+            
             self.m_listBox2.InsertItems(task,0)
             self.running_index = 0
             self.ly.call(self)
@@ -552,23 +559,7 @@ class Ep(ui.MyFrame1):
 
         # 如果从电脑获取的uid 跟本地uid不一致，则修改系统
         if self.config['client']['uid'] != self.uid and self.credit_code != '':
-            self.set_config('client','uid',self.uid)
-
-        # 检测上个月数据是否导出
-        # today = datetime.date.today()
-        # first = today.replace(day=1)
-        # lastMonth = first - datetime.timedelta(days=1)
-        # ym = lastMonth.strftime("%Y%m")
-
-        # export = self.config['export']['sales_list']
-        # export_split = export.split(",")
-        # if ym in export_split:
-        #     self.m_staticText5.SetLabelText('上月数据已导出')
-        #     self.m_staticText5.SetForegroundColour( wx.Colour( 76, 146, 76 ) )
-        # else:    
-        #     self.m_staticText5.SetLabelText('上月数据还未上传')
-        
-        
+            self.set_config('client','uid',self.uid)        
 
     # 获取选择的时间
     def get_y_m(self):
@@ -608,13 +599,13 @@ class Ep(ui.MyFrame1):
         self.reset_by_data(y+'-'+m)
         if '销项' in sel_split[2]:
             if '航天' in sel_split[2]:
-                return self.export_sales(None)
+                return self.export_sales(None,self.tip)
             else:
                 dlg = wx.MessageDialog(None, u"功能暂未支持，敬请期待", u"鑫山财务-发票导出辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
                 if dlg.ShowModal() == wx.ID_OK:
                     pass
         elif '进项票勾选认证' in sel_split[2]:
-            return self.export_purchase(None)
+            return self.export_purchase(None,self.tip)
 
     def add_exp_log(self,data):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
