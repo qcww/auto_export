@@ -37,6 +37,7 @@ def set_client_path():
 
         #设置项
         config_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+        print('设置路径',config_path)
         win32api.RegSetValueEx(key, "Path", 0, win32con.REG_SZ, config_path)
 
         #关闭

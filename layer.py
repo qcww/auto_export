@@ -7,7 +7,7 @@ import time
 import threading
 
 class AskRun(ask_run_win):
-	def __init__(self, parent=None, id=wx.ID_ANY, title='鑫山财务-发票导出辅助工具'):
+	def __init__(self, parent=None, id=wx.ID_ANY, title='发票辅助工具'):
 		ask_run_win.__init__(self, parent)
 
 	def run_now( self, event ):
