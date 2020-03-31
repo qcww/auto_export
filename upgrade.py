@@ -18,7 +18,6 @@ class update:
         self.config.read(self.config_file,encoding='utf-8') 
 
     def check_update(self):
-        return False
         try:
             data = requests.get(self.config['link']['client_update_url'])
             parse = data.json()

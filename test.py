@@ -15,9 +15,10 @@ import regedit
 
 # app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
 # ac = app.window(class_name_re="WindowsForms10.Window.8.app")
-# mon_win = ac.window(title="发票数据导出")
+# mon_win = ac.window(title="发票数据导出",auto_id="FPExport")
 # # mon_win.print_control_identifiers()
-# mon_sel = mon_win.window(title="月份", auto_id="cmbMonth", control_type="ComboBox")
+# mon_sel = mon_win.window(title="月份", auto_id="cmbMonth")
+# mon_sel.set_focus()
 # mon_sel.set_focus()
 
 # for i in range(3):
@@ -213,17 +214,28 @@ import regedit
         # win = i.window(title_re="增值税发票税控开票软件")
         # print(i.window(title_re="增值税发票税控开票软件").exists())
 
-import wx
-import ContactUs
+# import wx
+# import ContactUs
  
-class YPiao(ContactUs.MyFrame3):
-    #这里开始继承后对Virtual event handlers进行override,这个示例是对关于我们的菜单选择后进行了重载。
-    def make_sure( self, event ):
-        self.Close()
+# class YPiao(ContactUs.MyFrame3):
+#     #这里开始继承后对Virtual event handlers进行override,这个示例是对关于我们的菜单选择后进行了重载。
+#     def make_sure( self, event ):
+#         self.Close()
          
-# init the programe
-app = wx.App() #实例化APP，因为wxformbuilder只提供界面布局，所以需要我们自己对代码进行构架
-frame = YPiao(None) #frame的实例
-frame.Show();
+# # init the programe
+# app = wx.App() #实例化APP，因为wxformbuilder只提供界面布局，所以需要我们自己对代码进行构架
+# frame = YPiao(None) #frame的实例
+# frame.Show();
  
-app.MainLoop() #wxpython的启动函数
+# app.MainLoop() #wxpython的启动函数
+def months(date1,date2):
+    date1_splite = date1.split('-')
+    date2_splite = date2.split('-')
+    y = int(date2_splite[0]) - int(date1_splite[0])
+    m = int(date2_splite[1]) - int(date1_splite[1])
+    return y*12 + m
+
+ym = '2019-04-11'
+now = time.strftime("%Y-%m-01",  time.localtime())
+m = months(ym,now)
+print(m)

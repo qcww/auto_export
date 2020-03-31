@@ -212,12 +212,11 @@ class Export:
 
     # 计算月份差 
     def months(self,date1,date2):
-        date1=time.strptime(date1,"%Y-%m-%d")
-        date2=time.strptime(date2,"%Y-%m-%d")
-        date1=datetime.datetime(date1[0],date1[1],date1[2])
-        date2=datetime.datetime(date2[0],date2[1],date2[2])
-        #返回两个变量相差的值，就是相差天数
-        return math.floor((date2-date1).days/30)
+        date1_splite = date1.split('-')
+        date2_splite = date2.split('-')
+        y = int(date2_splite[0]) - int(date1_splite[0])
+        m = int(date2_splite[1]) - int(date1_splite[1])
+        return y*12 + m
 
     def min_self(self):
         try:
@@ -325,6 +324,7 @@ class Export:
         
         now = time.strftime("%Y-%m-01",  time.localtime())
         m = self.months(ym,now)
+        print('获取改变',m)
         try:
             app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
             ac = app.window(class_name_re="WindowsForms10.Window.8.app")

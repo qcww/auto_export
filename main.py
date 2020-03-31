@@ -100,6 +100,10 @@ class Ep(ui.MyFrame1):
     def run_now( self, event ):
         print('run now')
 
+    def re_check(self,event):
+        self.app_status()
+
+
     def start(self):
         self.ask_run = False
         # 默认消息弹框提醒
@@ -121,8 +125,8 @@ class Ep(ui.MyFrame1):
                 return False
             pass
 
-        if first_run == True:
-            ret = self.post_link(self.host + self.config['client']['update_client_url'],{"invoice_client_id":"%s" % self.uid})
+
+        
         self.ly = layer.AskRun(None)
         
         self.reset_date()
@@ -150,11 +154,11 @@ class Ep(ui.MyFrame1):
     def check_usb_action(self):
         # self.run_status = bool(1 - self.run_status)
         if hasattr(self,'check_usb') == False:
-            self.check_usb = threading.Thread(target=self.check_usb_staus)
+            self.check_usb = threading.Thread(target=self.check_usb_status)
             self.cond = threading.Condition() # 锁
             self.check_usb.start()
 
-    def check_usb_staus(self,first = True):
+    def check_usb_status(self,first = True):
         if self.config['app']['default'] == '6':
             check_usb = UsbCheck.check_usb(self.config['app']['usb_ht'])
             if check_usb == True:
@@ -175,7 +179,7 @@ class Ep(ui.MyFrame1):
                 self.remove_task()
             self.set_status('已准备')
         time.sleep(5)
-        return self.check_usb_staus(False)
+        return self.check_usb_status(False)
 
     # 重置 usb状态
     def reset_usb_status(self,usb_status):
@@ -227,8 +231,7 @@ class Ep(ui.MyFrame1):
         def on_message(ws, message):
             msg = json.loads(message)
             if msg['type'] == 'ping':
-                pass
-                # ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
+                ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
             # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
             if msg['type'] == 'action' and msg['data'] != '':
                 print(msg)
@@ -243,7 +246,6 @@ class Ep(ui.MyFrame1):
                 self.reply_explore(msg['request_client_id'],rt)
 
         def on_error(ws, error):
-            now = time.strftime('%S ',time.localtime(time.time()))
             if self.err_connect == 0:
                 self.add_log('服务器连接已断开')
             self.err_connect += 1
@@ -274,6 +276,9 @@ class Ep(ui.MyFrame1):
     def check_user_service(self,first):
         credit_code = self.config['log']['credit_code']
         check_url = self.host + self.config['client']['check_service']
+
+        ret = requests.post(check_url,data={"credit_code":credit_code})
+        check_user = ret.json()
         try:
             ret = requests.post(check_url,data={"credit_code":credit_code})
             check_user = ret.json()
@@ -557,6 +562,9 @@ class Ep(ui.MyFrame1):
                 print('登录失败,上传日志')
                 self.add_exp_log({'content':'登录开票软件失败','credit_code':credit_code})
 
+        if self.credit_code != '' and self.uid != '':
+            self.post_link(self.host + self.config['client']['update_client_id_url'],{"credit_code":"%s" % self.credit_code,"invoice_client_id":"%s" % self.uid})        
+
         # 如果从电脑获取的uid 跟本地uid不一致，则修改系统
         if self.config['client']['uid'] != self.uid and self.credit_code != '':
             self.set_config('client','uid',self.uid)        
@@ -611,6 +619,10 @@ class Ep(ui.MyFrame1):
         headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
         add_link = self.host + self.config['log']['post_url']
         return requests.post(add_link, data=data, headers=headers)
+
+work_space = regedit.get_client_path()
+if work_space != '':
+    os.chdir(work_space)
 
 app = wx.App()
 frame = Ep(None)

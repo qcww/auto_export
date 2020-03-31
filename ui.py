@@ -24,6 +24,12 @@ class MyFrame1 ( wx.Frame ):
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
 
 		self.m_menubar1 = wx.MenuBar( 0 )
+		self.hd_option = wx.Menu()
+		self.restart = wx.MenuItem( self.hd_option, wx.ID_ANY, u"重新检测", wx.EmptyString, wx.ITEM_NORMAL )
+		self.hd_option.Append( self.restart )
+
+		self.m_menubar1.Append( self.hd_option, u"操作" )
+
 		self.m_menu7 = wx.Menu()
 		self.m_menuItem3 = wx.MenuItem( self.m_menu7, wx.ID_ANY, u"软件使用", wx.EmptyString, wx.ITEM_NORMAL )
 		self.m_menu7.Append( self.m_menuItem3 )
@@ -201,6 +207,7 @@ class MyFrame1 ( wx.Frame ):
 		self.Centre( wx.BOTH )
 
 		# Connect Events
+		self.Bind( wx.EVT_MENU, self.re_check, id = self.restart.GetId() )
 		self.Bind( wx.EVT_MENU, self.guide, id = self.m_menuItem3.GetId() )
 		self.Bind( wx.EVT_MENU, self.show_version, id = self.m_menuItem5.GetId() )
 		self.Bind( wx.EVT_MENU, self.contact_us, id = self.m_menuItem6.GetId() )
@@ -216,6 +223,9 @@ class MyFrame1 ( wx.Frame ):
 
 
 	# Virtual event handlers, overide them in your derived class
+	def re_check( self, event ):
+		event.Skip()
+
 	def guide( self, event ):
 		event.Skip()
 
