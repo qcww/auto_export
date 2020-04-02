@@ -34,7 +34,7 @@ class AskRun(ask_run_win):
 			self.main_win = main_win
 			self.checked_it = False
 			self.choose_run = False
-			self.time_over = 15
+			self.time_over = 10
 			self.retry = False
 			self.Show()
 			self.check_layer = threading.Thread(target=self.run_check)
@@ -50,7 +50,7 @@ class AskRun(ask_run_win):
 			time.sleep(1)
 			self.time_over -= 1
 		if self.retry == True:
-			self.time_over = 15
+			self.time_over = 10
 			self.retry = False
 			self.Show()
 			return self.run_check()

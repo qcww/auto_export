@@ -1,5 +1,6 @@
 from pywinauto.application import Application
 import pywinauto
+import win32clipboard as w
 import time
 import json
 import configparser
@@ -129,18 +130,18 @@ import regedit
 # mes_win.window(title="确认", class_name_re="WindowsForms10.BUTTON.app").click()
 
 
-# # 上传文件
+# 上传文件
 # def upload_file(file_name,upload_link):
 #     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
 #     file_name = './exp_file/'+file_name
 #     if os.path.exists(file_name):
 #         print('fff')
 #     files = {'upfile': open(file_name, 'rb')}
-#     data = {'credit_code': '913401003551536121', 'period': '201908', 'submit': '1', 'tax_import': '1'}
+#     data = {'credit_code': '91340100MA2NPN203B', 'period': '202003', 'submit': '1', 'cate': '1'}
 #     res = requests.post(upload_link, data=data, files=files, headers=headers)
 #     return res
 
-# re = upload_file('增值税专普发票数据导出20200227.xlsx','http://tinterface.hfxscw.com/interface.php?r=tax/invoice-upload')
+# re = upload_file('增值税专普清单发票数据导出20200402.xlsx','http://tinterface.hfxscw.com/interface.php?r=tax/upload-account-sales')
 # print(re.content)
 
 
@@ -228,14 +229,84 @@ import regedit
 # frame.Show();
  
 # app.MainLoop() #wxpython的启动函数
-def months(date1,date2):
-    date1_splite = date1.split('-')
-    date2_splite = date2.split('-')
-    y = int(date2_splite[0]) - int(date1_splite[0])
-    m = int(date2_splite[1]) - int(date1_splite[1])
-    return y*12 + m
+# def months(date1,date2):
+#     date1_splite = date1.split('-')
+#     date2_splite = date2.split('-')
+#     y = int(date2_splite[0]) - int(date1_splite[0])
+#     m = int(date2_splite[1]) - int(date1_splite[1])
+#     return y*12 + m
 
-ym = '2019-04-11'
-now = time.strftime("%Y-%m-01",  time.localtime())
-m = months(ym,now)
-print(m)
+# ym = '2019-04-11'
+# now = time.strftime("%Y-%m-01",  time.localtime())
+# m = months(ym,now)
+# print(m)
+def post_link(link,post_data):
+    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+    try:
+        req = requests.post(link, data=post_data, headers=headers)
+        resp = req.json()
+        return resp
+    except:
+        return {"code":500,"text":"网络异常，请求失败"}
+
+ret = post_link('http://tinterface.hfxscw.com/interface.php?r=tax/tax-qk',{"credit_code":"91340100MA2NPN203B"})     
+
+print(ret)
+
+def tax_qk():
+    app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",found_index=0)
+    time.sleep(2)
+    ac = app.window(title="税控发票开票软件")
+    ac["登录"].click()
+    if app['系统参数设置'].exists() == True:
+        pass
+    ac = app.window(class_name_re="WindowsForms10.Window.8.app",title="汇总信息")
+    if ac.exists() == True:
+        ac['确认'].click()
+
+    time.sleep(2)
+    app.SysMessageBox.wait('exists', timeout=20, retry_interval=1)
+    # 关闭其它弹框
+    if app.SysMessageBox.exists() == True:
+        # 完成清卡操作
+        mes = app.SysMessageBox.child_window(auto_id="lblMsg", control_type="Text")
+        if '完成清卡' in mes.texts()[0]:
+            print('清卡完成')
+            pass
+
+        app.SysMessageBox['确认'].click()
+
+def getClipboardText():
+    w.OpenClipboard()
+    d = w.GetClipboardData(win32con.CF_TEXT)
+    w.CloseClipboard()
+    return(d).decode('GBK')
+
+def exp_detail():
+    app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title_re="增值税发票税控开票软件")
+
+    ac = app.window(class_name_re="WindowsForms10.Window.8.app")
+    mon_win = ac.window(title="发票数据导出",auto_id="FPExport")
+    # mon_win.print_control_identifiers()
+    mon_sel = mon_win.window(title="月份", auto_id="cmbMonth")
+    mon_sel.set_focus()
+
+    # 检查导出的数据日期是否正确
+    ok_btn = mon_win.child_window(title="确定",found_index=0, auto_id="btnOK", control_type="Button")
+    if ok_btn.exists() == True:
+        try:
+            ok_btn.click()
+        except:
+            pass
+        time.sleep(1)
+
+    save_win = app.window(title='另存为')
+    save_win.wait('exists', timeout=10, retry_interval=1)
+    save_win.set_focus()
+    pywinauto.keyboard.send_keys('^n^c')
+    pwd = regedit.get_client_path()+"\\exp_file\\" + getClipboardText()
+    save_win.ComboBox.Edit.set_text(pwd)
+    pywinauto.keyboard.send_keys("^n%s")
+
+# tax_qk()
+# exp_detail()

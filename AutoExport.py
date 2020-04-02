@@ -2,6 +2,8 @@
 
 from pywinauto.application import Application
 import pywinauto
+import win32clipboard as w
+import random
 import time
 import datetime
 import json
@@ -30,23 +32,22 @@ class Export:
         locale.setlocale(locale.LC_ALL,'en')
         locale.setlocale(locale.LC_CTYPE,'chinese')
         self.menu_action = ['系统设置','发票管理','汇总处理','系统维护']
-        self.export_menu = "汇总管理->发票数据导出->发票数据导出"
+        self.export_menu = ["汇总管理->发票数据导出->发票数据导出","汇总管理->发票数据导出->清单发票数据导出"]
         self.do_ready()
         # self.user_info()
         print('检测版本兼容信息')
+
+    def post_link(self,link,post_data):
+        headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+        try:
+            req = requests.post(link, data=post_data, headers=headers)
+            resp = req.json()
+            return resp
+        except:
+            return {"code":500,"text":"网络异常，请求失败"}
         
         
     def run_app(self,timeout):
-        # try:
-        #     print('检测已登录窗口')
-        #     app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
-        #     ac = app.window(found_index=0)
-        #     ac.set_focus()
-        #     return app
-        # except:
-        #     print('未检测到已登录窗口，需要登录')
-        #     pass 
-
         try:
             print('重复尝试检测登录窗口')
             ac = self.app.window(title="税控发票开票软件")
@@ -91,19 +92,52 @@ class Export:
             self.run_app(3)
             # 需要点击登录
             self.try_login(True)
-        return True    
-        # try:
-        #     self.try_login(True)
-        # except:
-        #     ac = app.windows()[0]
-        #     ac.set_focus()
-        # self.app = app
+            return self.tax_qk()
+        return True
+
+    def tax_qk(self):
+        time.sleep(3)
+        if self.app['系统参数设置'].exists() == True:
+            return False
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",title="汇总信息")
+        if ac.exists() == True:
+            try:
+                ac['确认'].click()
+            except:
+                pass
+        else:
+            return True    
+        
+        time.sleep(5)
+        self.app.SysMessageBox.wait('exists', timeout=20, retry_interval=1)
+        # 关闭其它弹框
+        if self.app.SysMessageBox.exists() == True:
+            # 完成清卡操作
+            mes = self.app.SysMessageBox.child_window(auto_id="lblMsg", control_type="Text")
+            if '完成清卡' in mes.texts()[0]:
+                try:
+                    self.post_link(self.config['link']['host'] + self.config['upload']['tax_qk'],{"credit_code":"%s" % self.credit_code})
+                except :
+                    pass
+            self.app.SysMessageBox['确认'].click()
+        return True
 
     # 登录检测
     def try_login(self,retry):
         print('需要登录信息')
         ac = self.app.window(title="税控发票开票软件")
         if ac.window(title="登录", auto_id="btnOK", control_type="Button").exists() == True:
+            try:
+                title_win = ac.window(class_name_re="WindowsForms10.Window.8.app",auto_id="BodyClient")
+                credit_text = title_win.window_text()
+                credit_code = credit_text.split(" ")[-1]
+                uid,_ = regedit.get_pc_id()
+                if credit_code != '' and uid != '':
+                    print('绑定电脑id')
+                    self.post_link(self.config['link']['host'] + self.config['client']['update_client_id_url'],{"credit_code":"%s" % credit_code,"invoice_client_id":"%s" % uid})        
+            except:
+                print('设备id绑定失败')
+
             if retry == False:
                 if ac.CheckBox.get_toggle_state() == 0:
                     # 未知原因导致报错，需要屏蔽
@@ -111,17 +145,15 @@ class Export:
                         ac.CheckBox.click()
                     except:
                         pass
-                    
-                    print('安全提示')
+
                     ac.SysMessageBox.wait('exists', timeout=5, retry_interval=1)
-                    print('关闭安全提示')
                     ac.SysMessageBox.window(title="确认", auto_id="btnYes", control_type="Button").click()
                 try:
                     title_win = ac.window(class_name_re="WindowsForms10.Window.8.app",auto_id="BodyClient")
                     credit_text = title_win.window_text()
-                    credit_code = credit_text.split(" ")[-1]
+                    self.credit_code = credit_text.split(" ")[-1]
                     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-                    req = requests.post(self.config['link']['host'] + self.config['app']['jsp_pwd_url'],{"credit_code":credit_code}, headers=headers)
+                    req = requests.post(self.config['link']['host'] + self.config['app']['jsp_pwd_url'],{"credit_code":self.credit_code}, headers=headers)
                     req_json = req.json()
                     pwd = req_json['tax_disk_pwd'] if req_json['tax_disk_pwd'] != '' else self.config['client']['pwd']
                     cert = req_json['tax_disk_shibboleth'] if req_json['tax_disk_shibboleth'] != '' else self.config['client']['cert']
@@ -200,7 +232,7 @@ class Export:
         # v2.2.34版本出现
         if ac.Toolbar.window(title="报税处理").exists() == True:
             self.menu_action[2] = "报税处理"
-            self.export_menu = "报税处理->发票数据导出->发票数据导出"
+            self.export_menu[0] = "报税处理->发票数据导出->发票数据导出"
 
     def tab_menu(self,tab_menu):
         ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
@@ -260,6 +292,11 @@ class Export:
         except:
             pass
 
+    def getClipboardText(self):
+        w.OpenClipboard()
+        d = w.GetClipboardData(win32con.CF_TEXT)
+        w.CloseClipboard()
+        return(d).decode('GBK')
 
     # 修复数据
     def fix_data(self,ym):
@@ -310,7 +347,7 @@ class Export:
         mes_win.window(title="确认", class_name_re="WindowsForms10.BUTTON.app").click()
 
     # 导出excel
-    def dw_excel(self,ym):
+    def dw_excel(self,ym,index):
         select_menu = 2
         self.tab_menu(select_menu)
         time.sleep(1)
@@ -318,17 +355,17 @@ class Export:
         try:
             ac.maximize()
             ac.set_focus()
-            ac.menu_select(self.export_menu)
+            ac.menu_select(self.export_menu[index])
+            print(self.export_menu[index])
         except:
             pass
         
         now = time.strftime("%Y-%m-01",  time.localtime())
         m = self.months(ym,now)
-        print('获取改变',m)
+        time.sleep(1)
         try:
-            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
-            ac = app.window(class_name_re="WindowsForms10.Window.8.app")
-            mon_win = ac.window(title="发票数据导出",auto_id="FPExport")
+            ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+            mon_win = ac.window(class_name_re="WindowsForms10.Window.8.app",auto_id="FPExport")
             # mon_win.print_control_identifiers()
             mon_sel = mon_win.window(title="月份", auto_id="cmbMonth")
             mon_sel.set_focus()
@@ -341,9 +378,13 @@ class Export:
             # 检查导出的数据日期是否正确
             ym_sp = ym.split('-')
             if mon_win.window(title="%d年%d月%d日" % (int(ym_sp[0]),int(ym_sp[1]),int(ym_sp[2])), auto_id="dtpStart").exists() == True:
-                export_window = ac.window(title="发票数据导出", auto_id="FPExport", control_type="Window")
-                export_window.window(title="确定", auto_id="btnOK").click()
-                time.sleep(1)
+                ok_btn = mon_win.child_window(title="确定",found_index=0, auto_id="btnOK", control_type="Button")
+                if ok_btn.exists() == True:
+                    try:
+                        ok_btn.click()
+                    except:
+                        pass
+                    time.sleep(1)
             else:
                 return {"code":301,"msg":"超出所选期或无数据"}
         except:
@@ -362,32 +403,29 @@ class Export:
 
         try:
             # 另存
-            app = Application(backend='uia').connect(title="另存为")
-            save_win = app.window(title='另存为')
-            save_win.wait('exists', timeout=10, retry_interval=1)
-            save_win.set_focus()
-            time.sleep(1)
-            save_win.child_window(title="上一个位置", control_type="Button").click()
-            pwd = regedit.get_client_path()+'\exp_file'
-            # print(pwd)
-            save_win.child_window(title="地址", class_name="Edit").set_text(pwd)
+            save_win = self.app.window(title='另存为')
+            save_win.wait('exists', timeout=5, retry_interval=1)
 
-            pywinauto.keyboard.send_keys("{ENTER 1}")
+            pywinauto.keyboard.send_keys('^n^c')
+            upload_file_name = self.getClipboardText()
+            fix_name = "%d年%d月-%d" % (int(ym_sp[0]),int(ym_sp[1]),random.randint(1000,9999)) + upload_file_name
+            pwd = regedit.get_client_path()+"\\exp_file\\" + fix_name
+            save_win.ComboBox.Edit.set_text(pwd)
+            pywinauto.keyboard.send_keys("^n%s")
 
-            save_win.window(title_re="保存",class_name="Button").click()
             if save_win.window(title="确认另存为").exists() == True:
                 save_win.window(title="确认另存为").child_window(title_re="是").click()
 
             time.sleep(2)
-            app = Application(backend='uia').connect(title="发票数据导出")
-            ac = app.window(title="发票数据导出")
+
+            ac = self.app.window(auto_id="FPProgressBar",class_name_re="WindowsForms10.Window.8.app")
             ac.wait('exists', timeout=5, retry_interval=1)
             ac.set_focus()
             mes_win = ac.window(title="SysMessageBox")
             mes_win.wait('exists', timeout=10, retry_interval=1)
             if ac.window(title="导出成功").exists() == True:
                 ac.window(title="确认").click()
-                return {"code":200,"msg":""}
+                return {"code":200,"msg":"","upload_file_name":fix_name}
         except:
             pass
 

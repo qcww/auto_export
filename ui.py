@@ -24,6 +24,19 @@ class MyFrame1 ( wx.Frame ):
 		self.SetBackgroundColour( wx.SystemSettings.GetColour( wx.SYS_COLOUR_BTNFACE ) )
 
 		self.m_menubar1 = wx.MenuBar( 0 )
+		self.setting = wx.Menu()
+		self.set_notice = wx.Menu()
+		self.tips_no = wx.MenuItem( self.set_notice, wx.ID_ANY, u"不提醒", wx.EmptyString, wx.ITEM_RADIO )
+		self.set_notice.Append( self.tips_no )
+		self.tips_no.Check( True )
+
+		self.tips_yes = wx.MenuItem( self.set_notice, wx.ID_ANY, u"提醒", wx.EmptyString, wx.ITEM_RADIO )
+		self.set_notice.Append( self.tips_yes )
+
+		self.setting.AppendSubMenu( self.set_notice, u"弹框提醒" )
+
+		self.m_menubar1.Append( self.setting, u"设置" )
+
 		self.hd_option = wx.Menu()
 		self.restart = wx.MenuItem( self.hd_option, wx.ID_ANY, u"重新检测", wx.EmptyString, wx.ITEM_NORMAL )
 		self.hd_option.Append( self.restart )
@@ -207,6 +220,8 @@ class MyFrame1 ( wx.Frame ):
 		self.Centre( wx.BOTH )
 
 		# Connect Events
+		self.Bind( wx.EVT_MENU, self.set_tips_no, id = self.tips_no.GetId() )
+		self.Bind( wx.EVT_MENU, self.set_tips_yes, id = self.tips_yes.GetId() )
 		self.Bind( wx.EVT_MENU, self.re_check, id = self.restart.GetId() )
 		self.Bind( wx.EVT_MENU, self.guide, id = self.m_menuItem3.GetId() )
 		self.Bind( wx.EVT_MENU, self.show_version, id = self.m_menuItem5.GetId() )
@@ -223,6 +238,12 @@ class MyFrame1 ( wx.Frame ):
 
 
 	# Virtual event handlers, overide them in your derived class
+	def set_tips_no( self, event ):
+		event.Skip()
+
+	def set_tips_yes( self, event ):
+		event.Skip()
+
 	def re_check( self, event ):
 		event.Skip()
 

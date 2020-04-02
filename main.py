@@ -103,6 +103,14 @@ class Ep(ui.MyFrame1):
     def re_check(self,event):
         self.app_status()
 
+    # 设置不提醒
+    def set_tips_no(self,event):
+        self.set_config('client','notice','0')
+
+    # 设置提醒
+    def set_tips_yes(self,event):
+        self.set_config('client','notice','1')    
+
 
     def start(self):
         self.ask_run = False
@@ -124,18 +132,13 @@ class Ep(ui.MyFrame1):
             if dlg.ShowModal() == wx.ID_YES:
                 return False
             pass
-
-
-        
         self.ly = layer.AskRun(None)
         
         self.reset_date()
         self.set_status('已准备')
-        
 
         if self.check_user_service(True) == False:
             return False
-
         self.set_dw_link()
         self.add_log('辅助工具已打开')
 
@@ -224,7 +227,17 @@ class Ep(ui.MyFrame1):
                 self.ask_run = False
             # self.ask_run = False    
 
-        # return self.check_task()        
+        # return self.check_task()  
+    def handle_mes(self,data,client_id):
+        if self.usb_insert == False:
+            self.reply_explore(client_id,"导出失败，检测到税控盘未插入")
+        fir = self.m_listBox2.GetString(0)
+        if fir == '暂无任务':
+            self.m_listBox2.Delete(0)
+        self.m_listBox2.InsertItems([str(data)],0)
+        self.running_index = 0
+        rt = self.ly.call(self)
+        self.reply_explore(client_id,rt)
         
 
     def create_websocket(self):
@@ -234,16 +247,10 @@ class Ep(ui.MyFrame1):
                 ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
             # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
             if msg['type'] == 'action' and msg['data'] != '':
-                print(msg)
-                if self.usb_insert == False:
-                    self.reply_explore(msg['request_client_id'],"导出失败，检测到税控盘未插入")
-                fir = self.m_listBox2.GetString(0)
-                if fir == '暂无任务':
-                    self.m_listBox2.Delete(0)
-                self.m_listBox2.InsertItems([str(msg['data'])],0)
-                self.running_index = 0
-                rt = self.ly.call(self)
-                self.reply_explore(msg['request_client_id'],rt)
+                tp = threading.Thread(target=self.handle_mes,args=[msg['data'],msg['request_client_id']])
+                self.cond = threading.Condition() # 锁
+                tp.start()
+
 
         def on_error(ws, error):
             if self.err_connect == 0:
@@ -275,6 +282,9 @@ class Ep(ui.MyFrame1):
     # 检查用户代账服务状态
     def check_user_service(self,first):
         credit_code = self.config['log']['credit_code']
+        if credit_code == '':
+            return True
+
         check_url = self.host + self.config['client']['check_service']
 
         ret = requests.post(check_url,data={"credit_code":credit_code})
@@ -333,6 +343,9 @@ class Ep(ui.MyFrame1):
 
     # 导出进项票
     def export_purchase(self,event,tip = True):
+        notice = self.config['client']['notice']
+        if notice == '0':
+            tip = False
         ym = self.get_y_m()
         ym_split = ym.split('-')
         period = ym_split[0]+ym_split[1]
@@ -389,8 +402,13 @@ class Ep(ui.MyFrame1):
 
     # 导出销项票
     def export_sales(self,event,tip = True):
-        # 默认消息弹框提醒
+        # 默认消息弹框不提醒
+        notice = self.config['client']['notice']
+        if notice == '0':
+            tip = False
         ym = self.get_y_m()
+        # 销货清单默认状态
+        ret_fix = {"code":404,"msg":""}
         
         if self.usb_insert == False:
             self.add_log('导出失败，检测到税控盘未插入')
@@ -410,10 +428,12 @@ class Ep(ui.MyFrame1):
         if check_uer == False:
             return False
         # 修复数据
-        
         try:
             auto_app.fix_data(ym)
-            ret = auto_app.dw_excel(ym)
+            ret = auto_app.dw_excel(ym,0)
+            # 成功导出销项票数据后尝试导出清单数据
+            if ret['code'] == 200:
+                ret_fix = auto_app.dw_excel(ym,1)
             auto_app.min_app()
         except:
             if tip == True:
@@ -426,11 +446,27 @@ class Ep(ui.MyFrame1):
         ym_split = ym.split('-')
         if ret['code'] == 200:
             self.add_log("销项票导出成功，正在上传")
-            sales_name = self.config['upload']['sales_name'] + time.strftime("%Y%m%d",  time.localtime()) + self.config['upload']['sales_file_ext']
             sales_upload_link = self.host + self.config['upload']['sales_upload_link']
+            sales_detail_upload_link = self.host + self.config['upload']['sales_detail_upload_link']
             post_data = {"credit_code":self.credit_code,"period":ym_split[0]+ym_split[1],"submit":"1","tax_import":"1"}
-            ret = self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
+            ret = self.upload_export(ret['upload_file_name'],sales_upload_link,post_data,ym_split)
             if ret['code'] == 200:
+                # 上传销货清单
+                if ret_fix['code'] == 200:
+                    post_data['cate'] = '1'
+                    ret = self.upload_export(ret_fix['upload_file_name'],sales_detail_upload_link,post_data,ym_split)
+                    if ret['code'] != 200:
+                        self.add_log('航信销项票(%s) 清单数据上传失败' % (ym_split[0]+ym_split[1]))        
+                        return {"code":500,"text":ret['text']}
+                    self.add_log('航信销项票(%s)上传成功' % (ym_split[0]+ym_split[1]))        
+
+                self.add_exp_log({'content':'航信销项票数据(%s)导出并上传成功' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'1','period':ym_split[0]+ym_split[1]})
+                if tip == True:
+                    dlg = wx.MessageDialog(None, u"上传成功", u"发票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
+                    if dlg.ShowModal() == wx.ID_OK:
+                        # self.Close(True)
+                        pass
+            
                 if type(self.running_index) == int:
                     self.m_listBox2.Delete(self.running_index)
                     self.running_index = False
@@ -455,19 +491,13 @@ class Ep(ui.MyFrame1):
     def upload_export(self,sales_name,sales_upload_link,post_data,ym_split):
         up_res = self.upload_file(sales_name,sales_upload_link,post_data)
         if up_res['code'] == 0:
-            self.add_exp_log({'content':'航信销项票数据(%s)导出并上传成功' % (ym_split[0]+ym_split[1]),"credit_code":self.credit_code,'action':'2','status':'1','period':ym_split[0]+ym_split[1]})
-            if self.tip == True:
-                dlg = wx.MessageDialog(None, u"上传成功", u"发票辅助工具 提示", wx.OK | wx.STAY_ON_TOP | wx.ICON_INFORMATION)
-                if dlg.ShowModal() == wx.ID_OK:
-                    # self.Close(True)
-                    pass
-
-            self.add_log('航信销项票(%s)上传成功' % (ym_split[0]+ym_split[1]))    
             return {"code":200,"text":"上传成功"}
         else:
-            dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"发票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
-            if dlg.ShowModal() == wx.ID_YES:
-                return self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
+            notice = self.config['client']['notice']
+            if notice == '1':
+                dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"发票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
+                if dlg.ShowModal() == wx.ID_YES:
+                    return self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
         return {"code":500,"text":"数据已导出，但上传失败"}     
 
   
@@ -480,7 +510,6 @@ class Ep(ui.MyFrame1):
         files = {'upfile': open(file_name, 'rb')}
         try:
             res = requests.post(upload_link, data=data, files=files, headers=headers)
-            print(res.text)
             return res.json()
         except:
             return {"code":500,"text":"网络异常，上传失败"}
@@ -504,20 +533,23 @@ class Ep(ui.MyFrame1):
     def add_task(self):
         add_link = self.host + self.config['log']['task_url']
         task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_client_id':self.uid})
+        print('获取任务',task)
+        print(self.credit_code,self.uid)
 
         if len(task) == 0 or 'code' in task:
             self.remove_task()
             self.m_listBox2.InsertItems(["暂无任务"],0)
         else:
-            fir = self.m_listBox2.GetString(0)
-            fir = self.m_listBox2.GetString(0)
-            if fir == '暂无任务':
-                self.m_listBox2.Delete(0)
+            cc = self.m_listBox2.GetCount()
+            if cc > 0:
+                fir = self.m_listBox2.GetString(0)
+                fir = self.m_listBox2.GetString(0)
+                if fir == '暂无任务':
+                    self.m_listBox2.Delete(0)
             
             self.m_listBox2.InsertItems(task,0)
             self.running_index = 0
             self.ly.call(self)
-            
 
     def remove_task(self):
         cc = self.m_listBox2.GetCount()
