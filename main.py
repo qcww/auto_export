@@ -101,7 +101,10 @@ class Ep(ui.MyFrame1):
         print('run now')
 
     def re_check(self,event):
-        self.app_status()
+        # self.app_status()
+        self.check_usb_action()
+        self.connect_service()
+        self.check_task()
 
     # 设置不提醒
     def set_tips_no(self,event):
@@ -121,8 +124,7 @@ class Ep(ui.MyFrame1):
         if os.path.exists(self.config_file) == False:
             self.config_file = regedit.get_client_path()+"\\config\\config.ini"
 
-        self.uid,first_run = regedit.get_pc_id()
-        print('是否首次运行',first_run)
+        self.uid,_ = regedit.get_pc_id()
         try:
             self.config = configparser.ConfigParser()
             self.config.read(self.config_file,encoding='utf-8')
@@ -143,7 +145,6 @@ class Ep(ui.MyFrame1):
         self.add_log('辅助工具已打开')
 
         self.check_usb_action()
-        # self.app_status()
         self.connect_service()
         self.check_task()
         return True
@@ -157,9 +158,14 @@ class Ep(ui.MyFrame1):
     def check_usb_action(self):
         # self.run_status = bool(1 - self.run_status)
         if hasattr(self,'check_usb') == False:
+            self.check_usb_times = 1
             self.check_usb = threading.Thread(target=self.check_usb_status)
             self.cond = threading.Condition() # 锁
             self.check_usb.start()
+        elif self.check_usb.is_alive() == False:
+            delattr(self,'check_usb')
+            print('环境重启，检测usb状态')
+            return self.check_usb_action()
 
     def check_usb_status(self,first = True):
         if self.config['app']['default'] == '6':
@@ -181,16 +187,27 @@ class Ep(ui.MyFrame1):
             if first == True:
                 self.remove_task()
             self.set_status('已准备')
-        time.sleep(5)
+        time.sleep(3)
+        if self.check_usb_times % 100 == 0:
+            self.check_usb_times = 1
+            print('定时检查在线状态')
+            self.reset_client_status()
+        self.check_usb_times += 1
         return self.check_usb_status(False)
+
+    # 重试客户端在线状态
+    def reset_client_status(self):
+        if self.uid != '':
+            ret = self.post_link(self.host + self.config['client']['update_client_status'],{"invoice_client_id":self.uid,"login_status":'1'})
+            print('上传客户端在线状态',ret)
 
     # 重置 usb状态
     def reset_usb_status(self,usb_status):
         self.his_usb_status = self.usb_insert
         if self.usb_insert == True:
             self.app_status()
-        ret = self.post_link(self.host + self.config['client']['update_usb_url'],{"invoice_client_id":self.uid,"usb_status":int(usb_status)})
-        print(ret)
+        ret = self.post_link(self.host + self.config['client']['update_client_status'],{"invoice_client_id":self.uid,"usb_status":int(usb_status)})
+        print('上传usb状态',ret)
 
     # 修改客户端usb状态
     def update_usb_status(self):
@@ -208,6 +225,9 @@ class Ep(ui.MyFrame1):
             self.mythread = threading.Thread(target=self.create_websocket)
             self.cond = threading.Condition() # 锁
             self.mythread.start()
+        elif self.check_usb.is_alive() == False:
+            delattr(self,'mythread')
+            return self.connect_service()
 
     def check_task(self):
         if hasattr(self,'win_check') == False:
@@ -215,6 +235,9 @@ class Ep(ui.MyFrame1):
             self.win_check = threading.Thread(target=self.check_task_win)
             self.cond = threading.Condition() # 锁
             self.win_check.start()
+        elif self.win_check.is_alive() == False:
+            delattr(self,'win_check')
+            return self.check_task()
 
     def check_task_win(self):
         # 计时
@@ -231,20 +254,26 @@ class Ep(ui.MyFrame1):
     def handle_mes(self,data,client_id):
         if self.usb_insert == False:
             self.reply_explore(client_id,"导出失败，检测到税控盘未插入")
-        fir = self.m_listBox2.GetString(0)
-        if fir == '暂无任务':
-            self.m_listBox2.Delete(0)
+        cc = self.m_listBox2.GetCount()
+        if cc > 0:
+            fir = self.m_listBox2.GetString(0)
+            if fir == '暂无任务':
+                self.m_listBox2.Delete(0)
         self.m_listBox2.InsertItems([str(data)],0)
         self.running_index = 0
         rt = self.ly.call(self)
         self.reply_explore(client_id,rt)
-        
 
     def create_websocket(self):
         def on_message(ws, message):
             msg = json.loads(message)
             if msg['type'] == 'ping':
+                cur_time = int(time.time())
+                if cur_time - self.last_pong > 21:
+                    print('websocket发送超时重新设置在线状态')
+                    self.reset_client_status()    
                 ws.send('{"type":"pong","room_id":"%s"}' % (self.config['client']['room_id']))
+                self.last_pong = cur_time
             # msg = {"type":"action","room_id":"0da851c3bb31aaf458919479dcb726f0","send_to":"dd","data":"2019年 11月份 销项票数据导出"}
             if msg['type'] == 'action' and msg['data'] != '':
                 tp = threading.Thread(target=self.handle_mes,args=[msg['data'],msg['request_client_id']])
@@ -264,12 +293,16 @@ class Ep(ui.MyFrame1):
             self.add_log('连接已断开')
 
         def on_open(ws):
+            # 手动设置在线状态
+            print('服务器socket连接成功')
+            self.reset_client_status()
             self.add_log('服务器连接成功')
             self.err_connect = 0
             uid,_ = regedit.get_pc_id()
             ws.send('{"type":"login","room_id":"%s","client_name":"%s"}' % (self.config['client']['room_id'],uid))
 
         self.request_client_id = ''
+        self.last_pong = int(time.time())
         websocket.enableTrace(True)
         ws = websocket.WebSocketApp("ws://im.itking.cc:12366",
                                     on_message = on_message,
@@ -281,6 +314,7 @@ class Ep(ui.MyFrame1):
 
     # 检查用户代账服务状态
     def check_user_service(self,first):
+        print('检查服务状态')
         credit_code = self.config['log']['credit_code']
         if credit_code == '':
             return True
@@ -417,12 +451,11 @@ class Ep(ui.MyFrame1):
                 if dlg.ShowModal() == wx.ID_OK:
                     pass
             return False
-
+        print('导出销项票')
         auto_app = AutoExport.Export()
         # 最小化本应用窗口
         # auto_app.min_self()
         self.Hide()
-        auto_app.do_ready()
         auto_app.check_version()
         check_uer = self.check_user_service(False)
         if check_uer == False:
@@ -491,6 +524,7 @@ class Ep(ui.MyFrame1):
     def upload_export(self,sales_name,sales_upload_link,post_data,ym_split):
         up_res = self.upload_file(sales_name,sales_upload_link,post_data)
         if up_res['code'] == 0:
+            print('文件上传成功')
             return {"code":200,"text":"上传成功"}
         else:
             notice = self.config['client']['notice']
@@ -498,6 +532,7 @@ class Ep(ui.MyFrame1):
                 dlg = wx.MessageDialog(None, up_res['text'] + " 是否重新上传", u"发票辅助工具 发生错误", wx.YES_NO | wx.STAY_ON_TOP | wx.ICON_EXCLAMATION)
                 if dlg.ShowModal() == wx.ID_YES:
                     return self.upload_export(sales_name,sales_upload_link,post_data,ym_split)
+        print('文件上传失败')            
         return {"code":500,"text":"数据已导出，但上传失败"}     
 
   
@@ -534,7 +569,6 @@ class Ep(ui.MyFrame1):
         add_link = self.host + self.config['log']['task_url']
         task = self.post_link(add_link,{"credit_code":self.credit_code,'invoice_client_id':self.uid})
         print('获取任务',task)
-        print(self.credit_code,self.uid)
 
         if len(task) == 0 or 'code' in task:
             self.remove_task()
@@ -566,24 +600,30 @@ class Ep(ui.MyFrame1):
             return {"code":500,"text":"网络异常，请求失败"}
 
     # 开票软件运行状态
-    def app_status(self):        
+    def app_status(self):
+        print('检查客户端运行状态')
         self.set_config('log','last_run_time',time.strftime("%Y-%m-%d %H:%M", time.localtime()))
         # 自启动的 从配置文件获取用户信息
         print('检测启动方式')
+        self.credit_code = pname =''
         if '/autorun' in sys.argv:
             self.credit_code = self.config['log']['credit_code']
         else:
-            self.credit_code = pname =''
+            # 航信
             if self.config['app']['default'] == '6':
                 print('打开航信信息客户端获取信息')
                 auto_app = AutoExport.Export()
                 auto_app.do_ready()
                 self.credit_code,pname = auto_app.user_info()
+            else:
+                return False    
+        # 获取到公司名认为登录成功了，获取到税号可能只是打开了登录框 
         if pname != "":
             self.set_config('log','credit_code',self.credit_code)
             self.set_config('log','corpname',pname)
             self.set_status('开票软件已运行 | ' + pname)
             self.add_task()
+            
         else:
             self.add_log("获取用户信息失败")
             if self.credit_code != '':
@@ -593,13 +633,36 @@ class Ep(ui.MyFrame1):
             if credit_code != '':
                 print('登录失败,上传日志')
                 self.add_exp_log({'content':'登录开票软件失败','credit_code':credit_code})
-
+        # 从服务端获取清卡状态
+        if self.credit_code != '':
+            self.check_qk(auto_app)
+        # 最小化窗口
+        auto_app.min_app()
         if self.credit_code != '' and self.uid != '':
             self.post_link(self.host + self.config['client']['update_client_id_url'],{"credit_code":"%s" % self.credit_code,"invoice_client_id":"%s" % self.uid})        
 
         # 如果从电脑获取的uid 跟本地uid不一致，则修改系统
         if self.config['client']['uid'] != self.uid and self.credit_code != '':
-            self.set_config('client','uid',self.uid)        
+            self.set_config('client','uid',self.uid)
+
+    # 检查清卡
+    def check_qk(self,auto_app):
+        print('检查清卡状态')
+        ret = self.post_link(self.host + self.config['client']['qk_status_url'],{"credit_code":"%s" % self.credit_code,"uid":"%s" % self.uid})
+        print('服务端获取清卡状态',ret)
+        if ret['code'] == 0 and ret['qk_status'] == 0:
+            ss_time = ''
+            try:
+                ss_time = auto_app.get_qk_status()
+            except:
+                pass
+
+            # 上报锁死时间 
+            if ss_time != '':
+                s_time = "%s%s" % (ss_time[0:4],ss_time[5:7])
+                print('上传锁死日期',s_time)
+                ret = self.post_link(self.config['link']['host'] + self.config['upload']['tax_qk'],{"period":s_time,"credit_code":"%s" % self.credit_code})
+                print('清卡结果',ret)
 
     # 获取选择的时间
     def get_y_m(self):

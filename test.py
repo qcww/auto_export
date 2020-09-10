@@ -240,18 +240,18 @@ import regedit
 # now = time.strftime("%Y-%m-01",  time.localtime())
 # m = months(ym,now)
 # print(m)
-def post_link(link,post_data):
-    headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
-    try:
-        req = requests.post(link, data=post_data, headers=headers)
-        resp = req.json()
-        return resp
-    except:
-        return {"code":500,"text":"网络异常，请求失败"}
+# def post_link(link,post_data):
+#     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
+#     try:
+#         req = requests.post(link, data=post_data, headers=headers)
+#         resp = req.json()
+#         return resp
+#     except:
+#         return {"code":500,"text":"网络异常，请求失败"}
 
-ret = post_link('http://tinterface.hfxscw.com/interface.php?r=tax/tax-qk',{"credit_code":"91340100MA2NPN203B"})     
+# ret = post_link('http://tinterface.hfxscw.com/interface.php?r=tax/tax-qk',{"credit_code":"91340100MA2NPN203B"})     
 
-print(ret)
+# print(ret)
 
 def tax_qk():
     app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",found_index=0)
@@ -310,3 +310,45 @@ def exp_detail():
 
 # tax_qk()
 # exp_detail()
+
+# run = regedit.get_auto_path()
+# print(run)
+def get_qk_status():
+    app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title_re="增值税发票税控开票软件")
+    ac = app.window(class_name_re="WindowsForms10.Window.8.app")
+    ztcx_btn = ac.child_window(auto_id="btnZTCX", control_type="Button")
+    ztcx_btn.set_focus()
+    if ztcx_btn.exists() == False:
+        return False
+    try:
+        ztcx_btn.click()
+    except:
+        pass
+    
+    tab_btn = ac.child_window(title="增值税专用发票及增值税普通发票", control_type="TabItem")
+    tab_btn.wait('exists', timeout=2, retry_interval=5)
+    tab_btn.select()
+    ss_time = ac.child_window(auto_id="lblLockday",class_name_re="WindowsForms10.STATIC")
+    ss_time.wait('exists', timeout=2, retry_interval=5)
+    s_end_time = ss_time.window_text()
+    print('锁死时间',s_end_time)
+
+# get_qk_status()
+def get_next_month(year=None,month=None):
+    # 默认本年本月
+    if(year == None or month == None):
+        today = datetime.datetime.today()
+        year = today.year
+        month = today.month
+    if month == 12:
+        month = 1
+        year += 1
+    else:
+        month += 1
+    return datetime.datetime(year,month,1).strftime("%Y%m")
+    
+# cc = get_next_month()
+# print(cc)    
+
+# ss_time = '2020年05月23日'
+# print('上传锁死日期',"%s%s" % (ss_time[0:4],ss_time[5:7]))

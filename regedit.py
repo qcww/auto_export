@@ -6,13 +6,26 @@ import time
 import sys
 import uuid
 
+def get_auto_path():
+    try:
+        reg_key = winreg .OpenKey(winreg.HKEY_CURRENT_USER,'Software\\Microsoft\\Windows\\CurrentVersion\\Run')
+        app_path, _ = winreg.QueryValueEx(reg_key, "AutoExport")
+    except:
+        app_path = ''
+
+    return app_path
+
 def add_auto_run(path_file):
-    # zdynames = os.path.basename(__file__)     # 当前文件名的名称如：newsxiao.py
     name = 'AutoExport'      # 获得文件名的前部分,如：newsxiao
-    # path = os.path.abspath(os.path.dirname(__file__))+'\\'+zdynames # 要添加的exe完整路径如：
-    # 注册表项名
     if os.path.exists(path_file.split(' ')[0]) == False:
         return False
+    # 防止重复设置
+    auto_path = get_auto_path()
+    if auto_path != '':
+        if path_file == auto_path:
+            print('阻拦重复设置')
+            return False
+
 
     KeyName = 'Software\\Microsoft\\Windows\\CurrentVersion\\Run'
     # 异常处理
@@ -31,12 +44,18 @@ def set_client_path():
     reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe"
     reg_flags = win32con.WRITE_OWNER|win32con.KEY_WOW64_64KEY|win32con.KEY_ALL_ACCESS
 
+    config_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+    client_path = get_client_path()
+    if str(client_path) != '' and str(client_path) == str(config_path):
+        print('阻拦重复设置')
+        return True
+
     try:
         #直接创建（若存在，则为获取）
         key, _ = win32api.RegCreateKeyEx(reg_root, reg_path, reg_flags)
 
         #设置项
-        config_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+        
         print('设置路径',config_path)
         win32api.RegSetValueEx(key, "Path", 0, win32con.REG_SZ, config_path)
 
@@ -48,31 +67,12 @@ def set_client_path():
 
 def get_client_path():
     try:
-        reg_key = winreg .OpenKey(winreg .HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe")
+        reg_key = winreg .OpenKey(winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe")
         app_path, _ = winreg.QueryValueEx(reg_key, "Path")
     except:
         app_path = ''
 
     return app_path
-
-def set_pc_id():
-    reg_root = win32con.HKEY_LOCAL_MACHINE
-    reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe"
-    reg_flags = win32con.WRITE_OWNER|win32con.KEY_WOW64_64KEY|win32con.KEY_ALL_ACCESS
-
-    try:
-        #直接创建（若存在，则为获取）
-        key, _ = win32api.RegCreateKeyEx(reg_root, reg_path, reg_flags)
-
-        #设置项
-        uid = uuid.uuid1()
-        win32api.RegSetValueEx(key, "uid", 0, win32con.REG_SZ, str(uid))
-
-        #关闭
-        win32api.RegCloseKey(key)
-        return uid
-    except:
-        return ''
 
 def get_pc_id():
     try:
@@ -84,6 +84,26 @@ def get_pc_id():
         first = True
 
     return uid,first
+
+def set_pc_id():
+    reg_root = win32con.HKEY_LOCAL_MACHINE
+    reg_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\AutoExport.exe"
+    reg_flags = win32con.WRITE_OWNER|win32con.KEY_WOW64_64KEY|win32con.KEY_ALL_ACCESS
+
+    try:
+        #直接创建（若存在，则为获取）
+        key, _ = win32api.RegCreateKeyEx(reg_root, reg_path, reg_flags)
+        #设置项
+        uid = uuid.uuid1()
+        win32api.RegSetValueEx(key, "uid", 0, win32con.REG_SZ, str(uid))
+
+        #关闭
+        win32api.RegCloseKey(key)
+        return uid
+    except:
+        return ''
+
+
 
 def get_app_path(app_path,app_name):
     app_path = app_path

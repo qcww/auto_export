@@ -50,6 +50,7 @@ class Export:
     def run_app(self,timeout):
         try:
             print('重复尝试检测登录窗口')
+            self.app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
             ac = self.app.window(title="税控发票开票软件")
             ac.wait('exists', timeout=15, retry_interval=1)
             ac.set_focus()
@@ -62,7 +63,7 @@ class Export:
 
     # 最小化本应用窗口
     def min_app(self):
-        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app")
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
         try:
             ac.minimize()
         except:
@@ -74,31 +75,77 @@ class Export:
             self.app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
             return True
         except:
-            pass    
+            print('开票未打开')
+            pass
         # 打开了登录框
         try:
-            print('检测登录窗口')
-            self.app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title="税控发票开票软件")
-            ac = app.windows()[0]
+            self.app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id="LoginForm")
+            ac = self.app.windows()[0]
             ac.set_focus()
         except:
+            print('未检测到登录窗口,需要启动软件')
             ht_app = self.get_app_path()
             if ht_app == '':
                 return False
             app = Application(backend='uia').start(ht_app,timeout=15,retry_interval=5)
             time.sleep(10)
             print('等待程序启动')
-            self.app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",title="税控发票开票软件")
             self.run_app(3)
-            # 需要点击登录
-            self.try_login(True)
-            return self.tax_qk()
-        return True
+        # 需要点击登录
+        print('尝试登录')
+        self.try_login(True)
+        return self.tax_qk()
 
+    def get_qk_status(self):
+        print('检查清卡时间')
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id="MDIMainForm")
+        ztcx_btn = ac.child_window(auto_id="btnZTCX", control_type="Button")
+        if ztcx_btn.exists() == False:
+            select_menu = 2
+            self.tab_menu(select_menu)
+            time.sleep(1)
+        
+        if ztcx_btn.exists() == False:
+            return False
+
+        ztcx_btn.set_focus()    
+        try:
+            ztcx_btn.click()
+        except:
+            pass
+        
+        tab_btn = ac.child_window(title="增值税专用发票及增值税普通发票", control_type="TabItem")
+        tab_btn.wait('exists', timeout=2, retry_interval=5)
+        tab_btn.select()
+        ss_time = ac.child_window(auto_id="lblLockday",class_name_re="WindowsForms10.STATIC")
+        ss_time.wait('exists', timeout=2, retry_interval=5)
+        s_end_time = ss_time.window_text()
+        print('锁死时间',s_end_time)
+        pywinauto.keyboard.send_keys('%{F4}')
+        return s_end_time
+
+    # 默认锁死日期
+    def get_next_month(self,year=None,month=None):
+        # 默认本年本月
+        if(year == None or month == None):
+            today = datetime.datetime.today()
+            year = today.year
+            month = today.month
+        if month == 12:
+            month = 1
+            year += 1
+        else:
+            month += 1
+        return datetime.datetime(year,month,1).strftime("%Y%m")
+
+    # 上传清卡状态
     def tax_qk(self):
         time.sleep(3)
         if self.app['系统参数设置'].exists() == True:
+            print('检测到需要初始设置')
             return False
+
+        print('检测到需要汇总上传')    
         ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",title="汇总信息")
         if ac.exists() == True:
             try:
@@ -106,27 +153,40 @@ class Export:
             except:
                 pass
         else:
-            return True    
+            return True
         
         time.sleep(5)
-        self.app.SysMessageBox.wait('exists', timeout=20, retry_interval=1)
+        
+        mes_win = self.app.SysMessageBox.child_window(auto_id="lblMsg", control_type="Text")
+        try:
+            print('等待清卡完成')
+            mes_win.wait_not('exists', timeout=20, retry_interval=5)
+        except:
+            print('等待清卡任务完成超时了')
+            return False
+        
         # 关闭其它弹框
         if self.app.SysMessageBox.exists() == True:
             # 完成清卡操作
             mes = self.app.SysMessageBox.child_window(auto_id="lblMsg", control_type="Text")
+            print('检测到清卡完成信息')
             if '完成清卡' in mes.texts()[0]:
                 try:
-                    self.post_link(self.config['link']['host'] + self.config['upload']['tax_qk'],{"credit_code":"%s" % self.credit_code})
+                    self.post_link(self.config['link']['host'] + self.config['upload']['tax_qk'],{"period":self.get_next_month(),"credit_code":"%s" % self.credit_code})
                 except :
                     pass
-            self.app.SysMessageBox['确认'].click()
+            if self.app.SysMessageBox.exists == True:    
+                self.app.SysMessageBox['确认'].click()
+                print('点击了确认信息框，稍等')
+            time.sleep(5)
         return True
 
     # 登录检测
     def try_login(self,retry):
         print('需要登录信息')
-        ac = self.app.window(title="税控发票开票软件")
+        ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id="LoginForm")
         if ac.window(title="登录", auto_id="btnOK", control_type="Button").exists() == True:
+            print('检测到登录按钮')
             try:
                 title_win = ac.window(class_name_re="WindowsForms10.Window.8.app",auto_id="BodyClient")
                 credit_text = title_win.window_text()
@@ -155,6 +215,7 @@ class Export:
                     headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
                     req = requests.post(self.config['link']['host'] + self.config['app']['jsp_pwd_url'],{"credit_code":self.credit_code}, headers=headers)
                     req_json = req.json()
+                    print('从服务端获取的密码口令',req_json)
                     pwd = req_json['tax_disk_pwd'] if req_json['tax_disk_pwd'] != '' else self.config['client']['pwd']
                     cert = req_json['tax_disk_shibboleth'] if req_json['tax_disk_shibboleth'] != '' else self.config['client']['cert']
                 except:
@@ -170,6 +231,7 @@ class Export:
                 cert_win = ac.window(auto_id="txtCertPassword", control_type="Edit")
                 cert_win.set_text(cert)
             # 未知原因需要屏蔽错误 
+            print('点击登录按钮')
             try:
                 ac["登录"].click() 
             except:
@@ -210,8 +272,7 @@ class Export:
         self.config.write(open(self.config_file,'w',encoding='utf-8'))
 
     def user_info(self):
-        # select_menu = 0
-        # self.tab_menu(select_menu)
+        print('获取登录用户的客户端信息')
         try:
             ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
             status_bar = ac.window(auto_id="statusStrip1", control_type="StatusBar")
@@ -221,13 +282,14 @@ class Export:
             p2 = match_uid.find(".")
             uid = match_uid[int(p1)+1:int(p2)]
             corpname = status_bar.children()[1].texts()[0]
-            ac.minimize()
+            # ac.minimize()
             return uid,corpname
         except:    
             return '',''
 
     # 版本兼容处理（仅仅处理已知版本兼容问题）
     def check_version(self):
+        print('兼容处理部分代码')
         ac = self.app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
         # v2.2.34版本出现
         if ac.Toolbar.window(title="报税处理").exists() == True:
@@ -261,13 +323,13 @@ class Export:
 
     # 执行准备动作
     def do_ready(self):
+        print('do ready')
         # 防止不规范操作导致的关闭应用或最小化窗口
-        try:
-            self.login()
-        except:
-            pass
+        self.login()
+
         # 关闭重复弹框的提醒框
         try:
+            print('检测重复运行弹框，并关闭')
             run_over = Application(backend='uia').connect(title="CusMessageBox")
             if run_over.window(title="CusMessageBox").exists() == True:
                 run_over.window(title="CusMessageBox").close()
@@ -275,13 +337,12 @@ class Export:
             pass
 
         try:
-            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app")
+            app = Application(backend='uia').connect(class_name_re="WindowsForms10.Window.8.app",auto_id="MDIMainForm")
             ac = app.windows()
             # 关闭其它弹框
-
+            print('关闭多余窗口')
             if len(ac) > 1:
                 for i in ac:
-                    print(i.automation_id())
                     if i.automation_id() != 'MDIMainForm':
                         i.close()
             ac = app.window(class_name_re="WindowsForms10.Window.8.app",auto_id = "MDIMainForm")
@@ -406,10 +467,14 @@ class Export:
             save_win = self.app.window(title='另存为')
             save_win.wait('exists', timeout=5, retry_interval=1)
 
-            pywinauto.keyboard.send_keys('^n^c')
+            pywinauto.keyboard.send_keys('^n^x')
             upload_file_name = self.getClipboardText()
             fix_name = "%d年%d月-%d" % (int(ym_sp[0]),int(ym_sp[1]),random.randint(1000,9999)) + upload_file_name
+            if 'xlsx' not in fix_name:
+                fix_name += '.xlsx'
+
             pwd = regedit.get_client_path()+"\\exp_file\\" + fix_name
+            print('导出的文件名',pwd)
             save_win.ComboBox.Edit.set_text(pwd)
             pywinauto.keyboard.send_keys("^n%s")
 
